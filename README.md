@@ -56,6 +56,10 @@ Convierte texto Markdown o archivos `.md` en documentos HTML autónomos y profes
    - Sangría progresiva a la derecha para sublistas anidadas con viñetas concéntricas (`disc` -> `circle` -> `square`).
    - Enlaces intra-documento con navegación fluida sin recarga.
 
+8. **Diseño Adaptativo y Tamaño Dinámico de Ventana:**
+   - **Inicio inteligente según pantalla:** Ventana compacta y pequeña en monitores de escritorio para facilitar la multitarea, y amplia/espaciosa en laptops.
+   - **Interfaz 100% responsiva:** Tipografía fluida con funciones `clamp()`, botones adaptativos en cuadrículas dinámicas y soporte desde 360px hasta 4K.
+
 ---
 
 ## 🎨 Especificaciones de Diseño (Apple HIG)
