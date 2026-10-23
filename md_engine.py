@@ -285,6 +285,18 @@ code {
   border-radius: 6px;
 }
 
+kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82em;
+  background-color: var(--card-alt-bg);
+  color: var(--text-main);
+  padding: 0.15em 0.45em;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  border-bottom: 2px solid var(--border-color);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 /* Syntax Highlighting */
 .tok-kw { color: #ff7b72; font-weight: 600; }
 .tok-diff-add { color: #7ee787; background: rgba(46, 160, 67, 0.15); display: block; }
@@ -604,6 +616,7 @@ def inline_formatting(text: str) -> str:
     text = re.sub(r'(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)', r'<em>\1</em>', text)
     text = re.sub(r'(?<!_)_(?!_)(.*?)(?<!_)_(?!_)', r'<em>\1</em>', text)
     text = re.sub(r'~~(.*?)~~', r'<del>\1</del>', text)
+    text = re.sub(r'\[\[kbd:([^\]]+)\]\]', r'<kbd>\1</kbd>', text)
     text = format_status_badges(text)
 
     for i, tok in enumerate(code_tokens):
@@ -642,10 +655,12 @@ def clean_markdown_inline(text: str) -> str:
     text = re.sub(r'<[^>]+>', '', text)
     # Quitar código en línea
     text = re.sub(r'`([^`]+)`', r'\1', text)
-    # Quitar enlaces [texto](url) -> texto
-    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
     # Quitar imágenes ![alt](url) -> alt
     text = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'\1', text)
+    # Quitar enlaces [texto](url) -> texto
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+    # Quitar atajos de teclado [[kbd:...]] -> ...
+    text = re.sub(r'\[\[kbd:([^\]]+)\]\]', r'\1', text)
     # Quitar negritas y cursivas
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
     text = re.sub(r'__(.*?)__', r'\1', text)
@@ -1105,14 +1120,33 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
                 table_lines.append(body_lines[i])
                 i += 1
             headers = [c.strip() for c in table_lines[0].strip().strip('|').split('|')]
+            align_cells = [c.strip() for c in table_lines[1].strip().strip('|').split('|')]
+            alignments = []
+            for a in align_cells:
+                if a.startswith(':') and a.endswith(':'):
+                    alignments.append('style="text-align: center;"')
+                elif a.endswith(':'):
+                    alignments.append('style="text-align: right;"')
+                elif a.startswith(':'):
+                    alignments.append('style="text-align: left;"')
+                else:
+                    alignments.append('')
+
             rows = []
             for r_line in table_lines[2:]:
                 cells = [c.strip() for c in r_line.strip().strip('|').split('|')]
                 rows.append(cells)
-            th_html = "".join([f"<th>{inline_formatting(h)}</th>" for h in headers])
+
+            th_html = "".join([
+                f"<th {alignments[col] if col < len(alignments) else ''}>{inline_formatting(h)}</th>"
+                for col, h in enumerate(headers)
+            ])
             tr_html = []
             for r in rows:
-                tds = "".join([f"<td>{inline_formatting(c)}</td>" for c in r])
+                tds = "".join([
+                    f"<td {alignments[col] if col < len(alignments) else ''}>{inline_formatting(c)}</td>"
+                    for col, c in enumerate(r)
+                ])
                 tr_html.append(f"<tr>{tds}</tr>")
             html_blocks.append(
                 f'<div class="table-container">\n'
@@ -1174,6 +1208,10 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
         "toc": toc_html,
         "frontmatter": frontmatter
     }
+
+def compile_markdown_to_body(md_text: str, custom_title: str = None, input_file_path: str = None) -> str:
+    """Función de conveniencia para compilar markdown directamente a HTML del cuerpo."""
+    return parse_markdown(md_text, custom_title=custom_title, input_file_path=input_file_path)["body"]
 
 def generate_index_html(root_dir: Path) -> Path:
     """

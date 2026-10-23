@@ -367,6 +367,12 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             filename = payload.get("filename", "").strip()
             file_path_str = payload.get("file_path", "").strip()
 
+            # Seguridad defensiva previa: rechazar archivos protegidos o extensiones ajenas
+            target_name = (file_path_str and Path(file_path_str).name) or filename
+            if target_name.lower() in ("index.html", "latest.html") or (target_name and Path(target_name).suffix.lower() not in (".html", ".htm")):
+                self.send_json({"error": "Archivo protegido o no permitido para eliminación."}, status=400)
+                return
+
             target_file = None
             if file_path_str:
                 p = Path(file_path_str).resolve()
@@ -377,11 +383,7 @@ class AppRequestHandler(BaseHTTPRequestHandler):
                 if p.exists() and p.is_file():
                     target_file = p
 
-            # Seguridad defensiva: solo borrar archivos .html de la biblioteca, nunca index/latest ni archivos ajenos
             if target_file:
-                if target_file.name.lower() in ("index.html", "latest.html") or target_file.suffix.lower() not in (".html", ".htm"):
-                    self.send_json({"error": "Archivo protegido o no permitido para eliminación."}, status=400)
-                    return
                 try:
                     target_file.unlink()
                 except Exception as e:
