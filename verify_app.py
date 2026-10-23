@@ -196,8 +196,17 @@ def saludar(nombre):
     shutil.rmtree(test_root, ignore_errors=True)
 
     print("\n==========================================")
-    print("✓ TODAS LAS PRUEBAS PASARON EXITOSAMENTE (9/9)")
+    print("✓ TODAS LAS PRUEBAS RÁPIDAS PASARON EXITOSAMENTE (9/9)")
     print("==========================================")
 
+    if "--full" in sys.argv or "-a" in sys.argv or "--all" in sys.argv:
+        print("\nEjecutando suite integral exhaustiva (run_tests.py)...")
+        import run_tests
+        return run_tests.run_all_tests()
+    else:
+        print("\n[TIP] Para ejecutar la suite integral completa (79 tests unitarios, API, seguridad y geometría):")
+        print("      python run_tests.py  (o: python verify_app.py --full)")
+        return 0
+
 if __name__ == "__main__":
-    run_tests()
+    sys.exit(run_tests() or 0)
