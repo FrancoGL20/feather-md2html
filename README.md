@@ -68,3 +68,25 @@ Convierte texto Markdown o archivos `.md` en documentos HTML autónomos y profes
 - Materiales translúcidos (`backdrop-filter: blur(20px)`).
 - Respuesta física inmediata en pointer-down (`transform: scale(0.97)` en botones).
 - Tipografía SF Pro / system-ui con tracking óptico negativo en títulos grandes.
+
+---
+
+## 🧪 Pruebas Automatizadas y Calidad de Código
+
+La aplicación cuenta con una suite integral de 79 pruebas unitarias, de integración, de seguridad y de geometría, sin dependencias externas:
+
+```powershell
+# Ejecutar suite integral completa (79 tests con métricas en tiempo real):
+python run_tests.py
+
+# O ejecutar verificación rápida de humo (9 checks):
+python verify_app.py
+```
+
+### Módulos de Prueba (`tests/`):
+- **`tests/test_md_engine.py` (42 tests):** Compilador léxico y sintáctico, callouts GitHub, tablas con alineación, atajos `[[kbd:...]]`, jerarquía de listas anidadas, badges de estado, slugify y catálogo cronológico.
+- **`tests/test_app_api.py` (19 tests):** API REST del servidor HTTP local sobre loopback real (`127.0.0.1`), códigos de estado HTTP, endpoints GET/POST, validación y manejo de errores.
+- **`tests/test_window_geometry.py` (7 tests):** Detección de pantallas de escritorio vs. laptops, dimensionamiento adaptativo, límites mínimos y centrado nativo.
+- **`tests/test_config_and_history.py` (6 tests):** Persistencia de configuración, recuperación ante JSON corrupto, límite estricto de 10 elementos e higiene de archivos fantasma.
+- **`tests/test_security.py` (5 tests):** Prevención de Path Traversal en `/assets/`, protección de archivos del sistema e `index.html`/`latest.html` contra eliminación y sanitización XSS.
+
