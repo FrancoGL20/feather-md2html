@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+*$py.class
+test_output_library/
+debug_log.txt
+tmp/
