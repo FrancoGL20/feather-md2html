@@ -396,3 +396,15 @@ Si se desea mover la aplicación a otra computadora con Windows o clonarla en un
    powershell -ExecutionPolicy Bypass -File .\install_shortcuts.ps1
    ```
 3. El script detectará automáticamente la instalación de Python de la nueva máquina, compilará el icono y dejará los accesos directos listos para usar en el Escritorio y el Menú Inicio.
+
+---
+
+## 10. Estándar de Flujo de Trabajo Git Flow y Conventional Commits
+
+El desarrollo y mantenimiento continuo de la aplicación se rige por el protocolo formal detallado en [GIT_FLOW.md](file:///c:/General/MarkdownToHTML_App/GIT_FLOW.md) y la regla [.agents/rules/git_flow.md](file:///c:/General/MarkdownToHTML_App/.agents/rules/git_flow.md):
+
+1. **Ramas Principales:** `master` (producción y tags SemVer) y `develop` (integración continua).
+2. **Ramas de Trabajo:** `feature/*`, `bugfix/*`, `release/*`, `hotfix/*`, `test/*`.
+3. **Conventional Commits:** `<tipo>(<alcance>): <descripción>` con tipos estandarizados (`feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `merge`).
+4. **Ciclo de Desarrollo Obligatorio (7 Pasos):** Inspección limpia -> Creación de rama de trabajo -> TDD y Zero-Bloatware -> Validación completa con 100% de éxito en tests -> Commits semánticos atómicos -> Integración `merge --no-ff` a `develop` -> Limpieza de rama integrada.
+

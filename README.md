@@ -90,3 +90,14 @@ python verify_app.py
 - **`tests/test_config_and_history.py` (6 tests):** Persistencia de configuración, recuperación ante JSON corrupto, límite estricto de 10 elementos e higiene de archivos fantasma.
 - **`tests/test_security.py` (5 tests):** Prevención de Path Traversal en `/assets/`, protección de archivos del sistema e `index.html`/`latest.html` contra eliminación y sanitización XSS.
 
+---
+
+## 🌿 Flujo de Trabajo Git Flow y Contribución
+
+El desarrollo sigue el estándar de ramas **Git Flow** y **Conventional Commits**:
+- Consulta la guía completa en [GIT_FLOW.md](file:///c:/General/MarkdownToHTML_App/GIT_FLOW.md).
+- Ramas principales: `master` (producción) y `develop` (integración).
+- Ramas de trabajo: `feature/*`, `bugfix/*`, `release/*`, `hotfix/*`, `test/*`.
+- Toda contribución debe pasar el 100% de la suite de pruebas antes de integrarse.
+
+
