@@ -7,21 +7,25 @@
   <link rel="icon" href="../assets/app_icon.png">
   <style>
     :root {
-      --canvas: #000000;
-      --card: #141416;
-      --card-alt: #1a1a1e;
-      --card-hover: #202025;
-      --border: rgba(255, 255, 255, 0.08);
-      --border-focus: #2997ff;
-      --text: #f5f5f7;
-      --text-muted: #a1a1a6;
-      --text-faint: #6e6e73;
-      --primary: #2997ff;
-      --primary-hover: #47a7ff;
-      --primary-surface: rgba(41, 151, 255, 0.12);
-      --success: #30d158;
-      --success-surface: rgba(48, 209, 88, 0.14);
-      --danger: #ff453a;
+      --canvas: #0b0a0a;
+      --card: #141312;
+      --card-alt: #1c1a19;
+      --card-hover: #252220;
+      --border: rgba(220, 180, 150, 0.08);
+      --border-focus: #d97736;
+      --text: #f5ede6;
+      --text-muted: #a6988f;
+      --text-faint: #6e645d;
+      --primary: #d97736;
+      --primary-hover: #e58746;
+      --primary-surface: rgba(217, 119, 54, 0.12);
+      --btn-bg: linear-gradient(180deg, #d97736 0%, #b85b1e 100%);
+      --btn-hover: linear-gradient(180deg, #e58746 0%, #c76729 100%);
+      --btn-shadow: 0 4px 16px rgba(217, 119, 54, 0.28);
+      --btn-text: #ffffff;
+      --success: #48bb78;
+      --success-surface: rgba(72, 187, 120, 0.12);
+      --danger: #e53e3e;
       --spring: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
@@ -46,7 +50,7 @@
       align-items: center;
       padding: clamp(0.6rem, 1.8vw, 0.9rem) clamp(0.75rem, 2.5vw, 1.4rem);
       border-bottom: 1px solid var(--border);
-      background-color: rgba(20, 20, 22, 0.75);
+      background-color: rgba(20, 19, 18, 0.85);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       position: sticky;
@@ -88,7 +92,7 @@
       color: var(--success);
       font-size: 0.72rem;
       font-weight: 600;
-      border: 1px solid rgba(48, 209, 88, 0.25);
+      border: 1px solid rgba(72, 187, 120, 0.25);
       flex-shrink: 0;
       white-space: nowrap;
     }
@@ -230,7 +234,8 @@
       width: 36px;
       height: 20px;
       appearance: none;
-      background-color: #333336;
+      background-color: #262321;
+      border: 1px solid var(--border);
       border-radius: 9999px;
       outline: none;
       cursor: pointer;
@@ -423,9 +428,9 @@
 
     /* Convert Button */
     .convert-btn {
-      background: linear-gradient(180deg, #339cff 0%, #0071e3 100%);
-      color: #ffffff;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: 1px solid rgba(255, 255, 255, 0.18);
       border-radius: 12px;
       padding: 0.75rem 1.4rem;
       font-size: 0.92rem;
@@ -436,14 +441,14 @@
       justify-content: center;
       align-items: center;
       gap: 0.45rem;
-      box-shadow: 0 4px 14px rgba(0, 113, 227, 0.4);
+      box-shadow: var(--btn-shadow);
       transition: all 120ms var(--spring);
       width: 100%;
     }
 
     .convert-btn:hover {
-      background: linear-gradient(180deg, #47a7ff 0%, #0077ed 100%);
-      box-shadow: 0 6px 18px rgba(0, 113, 227, 0.5);
+      background: var(--btn-hover);
+      box-shadow: 0 6px 18px rgba(217, 119, 54, 0.36);
       transform: translateY(-1px);
     }
 
@@ -632,15 +637,15 @@
     }
 
     .btn-delete {
-      color: #ff453a !important;
-      background: rgba(255, 69, 58, 0.08) !important;
-      border-color: rgba(255, 69, 58, 0.22) !important;
+      color: var(--danger) !important;
+      background: rgba(229, 62, 62, 0.08) !important;
+      border-color: rgba(229, 62, 62, 0.22) !important;
     }
 
     .btn-delete:hover {
-      background: rgba(255, 69, 58, 0.2) !important;
-      border-color: rgba(255, 69, 58, 0.5) !important;
-      color: #ff6961 !important;
+      background: rgba(229, 62, 62, 0.2) !important;
+      border-color: rgba(229, 62, 62, 0.5) !important;
+      color: #fc8181 !important;
     }
 
     .recent-empty {
@@ -668,9 +673,9 @@
       bottom: 1.5rem;
       left: 50%;
       transform: translateX(-50%) translateY(50px);
-      background: #1e1e24;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      color: #ffffff;
+      background: #1c1a19;
+      border: 1px solid rgba(220, 180, 150, 0.18);
+      color: var(--text);
       padding: 0.55rem 1rem;
       border-radius: 9999px;
       font-size: 0.8rem;
@@ -882,7 +887,7 @@ Este es un reporte con alertas:
           <span style="color: var(--success); font-size: 1.2rem;">✓</span>
           <span class="result-title" id="resultDocTitle">Documento Convertido</span>
         </div>
-        <span class="status-capsule" style="background: rgba(48, 209, 88, 0.15); color: #30d158;">Listo en &lt; 20ms</span>
+        <span class="status-capsule" style="background: rgba(72, 187, 120, 0.15); color: #48bb78;">Listo en &lt; 20ms</span>
       </div>
 
       <div class="result-path-box" id="resultPath">...</div>
