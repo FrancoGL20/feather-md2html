@@ -7,25 +7,25 @@
   <link rel="icon" href="../assets/app_icon.png">
   <style>
     :root {
-      --canvas: #0b0a0a;
-      --card: #141312;
-      --card-alt: #1c1a19;
-      --card-hover: #252220;
-      --border: rgba(220, 180, 150, 0.08);
-      --border-focus: #d97736;
-      --text: #f5ede6;
-      --text-muted: #a6988f;
-      --text-faint: #6e645d;
-      --primary: #d97736;
-      --primary-hover: #e58746;
-      --primary-surface: rgba(217, 119, 54, 0.12);
-      --btn-bg: linear-gradient(180deg, #d97736 0%, #b85b1e 100%);
-      --btn-hover: linear-gradient(180deg, #e58746 0%, #c76729 100%);
-      --btn-shadow: 0 4px 16px rgba(217, 119, 54, 0.28);
+      --canvas: #070708;
+      --card: #111114;
+      --card-alt: #17181c;
+      --card-hover: #202127;
+      --border: rgba(255, 255, 255, 0.07);
+      --border-focus: #f97316;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-faint: #64748b;
+      --primary: #f97316;
+      --primary-hover: #fb923c;
+      --primary-surface: rgba(249, 115, 22, 0.14);
+      --btn-bg: linear-gradient(180deg, #f97316 0%, #d45706 100%);
+      --btn-hover: linear-gradient(180deg, #fb923c 0%, #e6620f 100%);
+      --btn-shadow: 0 4px 18px rgba(249, 115, 22, 0.3);
       --btn-text: #ffffff;
-      --success: #48bb78;
-      --success-surface: rgba(72, 187, 120, 0.12);
-      --danger: #e53e3e;
+      --success: #10b981;
+      --success-surface: rgba(16, 185, 129, 0.12);
+      --danger: #ef4444;
       --spring: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
@@ -50,7 +50,7 @@
       align-items: center;
       padding: clamp(0.6rem, 1.8vw, 0.9rem) clamp(0.75rem, 2.5vw, 1.4rem);
       border-bottom: 1px solid var(--border);
-      background-color: rgba(20, 19, 18, 0.85);
+      background-color: rgba(17, 17, 20, 0.85);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       position: sticky;
@@ -92,7 +92,7 @@
       color: var(--success);
       font-size: 0.72rem;
       font-weight: 600;
-      border: 1px solid rgba(72, 187, 120, 0.25);
+      border: 1px solid rgba(16, 185, 129, 0.25);
       flex-shrink: 0;
       white-space: nowrap;
     }
@@ -234,7 +234,7 @@
       width: 36px;
       height: 20px;
       appearance: none;
-      background-color: #262321;
+      background-color: #1a1b20;
       border: 1px solid var(--border);
       border-radius: 9999px;
       outline: none;
@@ -448,7 +448,7 @@
 
     .convert-btn:hover {
       background: var(--btn-hover);
-      box-shadow: 0 6px 18px rgba(217, 119, 54, 0.36);
+      box-shadow: 0 6px 18px rgba(249, 115, 22, 0.38);
       transform: translateY(-1px);
     }
 
@@ -673,8 +673,8 @@
       bottom: 1.5rem;
       left: 50%;
       transform: translateX(-50%) translateY(50px);
-      background: #1c1a19;
-      border: 1px solid rgba(220, 180, 150, 0.18);
+      background: #17181c;
+      border: 1px solid rgba(255, 255, 255, 0.12);
       color: var(--text);
       padding: 0.55rem 1rem;
       border-radius: 9999px;
@@ -887,7 +887,7 @@ Este es un reporte con alertas:
           <span style="color: var(--success); font-size: 1.2rem;">✓</span>
           <span class="result-title" id="resultDocTitle">Documento Convertido</span>
         </div>
-        <span class="status-capsule" style="background: rgba(72, 187, 120, 0.15); color: #48bb78;">Listo en &lt; 20ms</span>
+        <span class="status-capsule" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">Listo en &lt; 20ms</span>
       </div>
 
       <div class="result-path-box" id="resultPath">...</div>
