@@ -1,6 +1,6 @@
-# Markdown to HTML — Desktop Application (Terracotta Copper & Smoked Charcoal Mate)
+# Markdown to HTML — Desktop Application (Volcanic Amber & Deep Obsidian Mate)
 
-Aplicación de escritorio nativa para Windows, ultra-rápida (<20ms), ligera y diseñada con una cuidada estética mate de **Terracota Cobre & Carbón Ahumado (Terracotta & Smoked Charcoal)** basada en principios de diseño industrial de alta gama.
+Aplicación de escritorio nativa para Windows, ultra-rápida (<20ms), ligera y diseñada con una cuidada estética mate de **Ámbar Volcánico y Negro Obsidiana (Volcanic Amber & Deep Obsidian)** basada en superficies de basalto oscuro y acentos de ámbar volcánico.
 
 Convierte texto Markdown o archivos `.md` en documentos HTML autónomos y profesionales, organizados en una biblioteca local con índice cronológico y navegación cruzada.
 
@@ -62,13 +62,14 @@ Convierte texto Markdown o archivos `.md` en documentos HTML autónomos y profes
 
 ---
 
-## 🎨 Especificaciones de Diseño (Terracotta Copper & Smoked Charcoal Mate)
+## 🎨 Especificaciones de Diseño (Volcanic Amber & Deep Obsidian Mate)
 
-- **Paleta Smoked Charcoal Mate:** Fondo negro humo profundo `#0b0a0a`, tarjetas en carbón tostado `#141312`, superficie elevada `#1c1a19` y bordes con reflejo reflectante cálido (`rgba(220, 180, 150, 0.08)`).
-- **Acento Cobre Terracota:** Botones y elementos interactivos en cobre mate `#d97736` con gradiente `linear-gradient(180deg, #d97736 0%, #b85b1e 100%)` y hover `#e58746`.
-- **Tipografía y Legibilidad:** Texto en pergamino suave anti-fatiga `#f5ede6` y titanio tostado `#a6988f`.
-- **Materiales ahumados:** Fondos translúcidos con `backdrop-filter: blur(20px)`.
-- **Respuesta táctil y micro-animaciones:** Curvas de resorte `cubic-bezier(0.16, 1, 0.3, 1)` y retroalimentación táctil `transform: scale(0.97)`.
+- **Paleta Deep Obsidian Mate:** Fondo negro obsidiana puro `#070708`, tarjetas en basalto mate `#111114`, superficie elevada `#17181c`, hover `#202127` y bordes sutiles ultra-finos (`rgba(255, 255, 255, 0.07)`).
+- **Acento Ámbar Volcánico:** Botones y elementos interactivos en ámbar sunset mate `#f97316` con gradiente `linear-gradient(180deg, #f97316 0%, #d45706 100%)`, hover `#fb923c` / `linear-gradient(180deg, #fb923c 0%, #e6620f 100%)` y resplandor cálido `box-shadow: 0 4px 18px rgba(249, 115, 22, 0.3)`.
+- **Tipografía y Legibilidad:** Texto en blanco slate `#f8fafc` de alta definición, textos secundarios en ceniza basalto `#94a3b8` y terciarios en `#64748b`.
+- **Badges y Semántica:** Aprobado en verde esmeralda mate `#10b981`, advertencias en ámbar cálido `#f59e0b` y errores en rojo coral `#ef4444`.
+- **Materiales obsidian:** Fondos translúcidos con `backdrop-filter: blur(20px)` y `rgba(17, 17, 20, 0.85)`.
+- **Respuesta táctil y micro-animaciones:** Curvas de resorte `cubic-bezier(0.16, 1, 0.3, 1)` y retroalimentación táctil `transform: scale(0.97)` / `scale(0.98)`.
 
 ---
 
@@ -85,7 +86,7 @@ python verify_app.py
 ```
 
 ### Módulos de Prueba (`tests/`):
-- **`tests/test_md_engine.py` (45 tests):** Compilador léxico y sintáctico, tokens del tema terracota cobre, callouts GitHub, tablas con alineación, atajos `[[kbd:...]]`, jerarquía de listas anidadas, badges de estado, slugify y catálogo cronológico.
+- **`tests/test_md_engine.py` (45 tests):** Compilador léxico y sintáctico, tokens del tema volcanic amber & deep obsidian, callouts GitHub, tablas con alineación, atajos `[[kbd:...]]`, jerarquía de listas anidadas, badges de estado, slugify y catálogo cronológico.
 - **`tests/test_app_api.py` (19 tests):** API REST del servidor HTTP local sobre loopback real (`127.0.0.1`), códigos de estado HTTP, endpoints GET/POST, validación y manejo de errores.
 - **`tests/test_window_geometry.py` (7 tests):** Detección de pantallas de escritorio vs. laptops, dimensionamiento adaptativo, límites mínimos y centrado nativo.
 - **`tests/test_config_and_history.py` (9 tests):** Persistencia de configuración, auto-recarga de documentos existentes al abrir la app, recuperación ante JSON corrupto, límite estricto de 10 elementos e higiene de archivos fantasma.
