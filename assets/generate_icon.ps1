@@ -20,21 +20,21 @@ $path.AddArc($rect.Right - $d, $rect.Bottom - $d, $d, $d, 0, 90)
 $path.AddArc($rect.X, $rect.Bottom - $d, $d, $d, 90, 90)
 $path.CloseFigure()
 
-# Background gradient: Dark OLED Slate (#141416 to #08080a)
+# Background gradient: Smoked Charcoal Mate (#141312 to #0b0a0a)
 $brushBg = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
     (New-Object System.Drawing.Point 0, 0),
     (New-Object System.Drawing.Point 0, 256),
-    [System.Drawing.Color]::FromArgb(255, 26, 26, 32),
-    [System.Drawing.Color]::FromArgb(255, 10, 10, 14)
+    [System.Drawing.Color]::FromArgb(255, 20, 19, 18),
+    [System.Drawing.Color]::FromArgb(255, 11, 10, 10)
 )
 $g.FillPath($brushBg, $path)
 
-# Subtle Apple light-catching border
-$penBorder = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(120, 255, 255, 255), 2)
+# Subtle warm light-catching border
+$penBorder = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(90, 245, 237, 230), 2)
 $g.DrawPath($penBorder, $path)
 
-# Subtle outer glow / inner border
-$penInner = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(40, 41, 151, 255), 3)
+# Subtle terracotta copper outer glow / inner border
+$penInner = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(45, 217, 119, 54), 3)
 $g.DrawPath($penInner, $path)
 
 # Draw Document Shape (Folded page)
@@ -58,15 +58,15 @@ $docPath.AddLine($dx, $dy + $dh - 12, $dx, $dy + 12)
 $docPath.AddArc($dx, $dy, 24, 24, 180, 90)
 $docPath.CloseFigure()
 
-# Fill document with Apple glass / gradient
+# Fill document with warm charcoal glass / gradient
 $brushDoc = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
     (New-Object System.Drawing.Point $dx, $dy),
     (New-Object System.Drawing.Point ($dx + $dw), ($dy + $dh)),
-    [System.Drawing.Color]::FromArgb(255, 34, 34, 42),
-    [System.Drawing.Color]::FromArgb(255, 18, 18, 24)
+    [System.Drawing.Color]::FromArgb(255, 28, 26, 25),
+    [System.Drawing.Color]::FromArgb(255, 18, 17, 16)
 )
 $g.FillPath($brushDoc, $docPath)
-$penDoc = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(90, 255, 255, 255), 1.5)
+$penDoc = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(70, 220, 180, 150), 1.5)
 $g.DrawPath($penDoc, $docPath)
 
 # Fold corner triangle
@@ -76,31 +76,31 @@ $foldPath.AddArc($dx + $dw - $fold, $dy + $fold - 12, 12, 12, 180, 90)
 $foldPath.AddLine($dx + $dw - $fold + 6, $dy + $fold, $dx + $dw, $dy + $fold)
 $foldPath.AddLine($dx + $dw - $fold, $dy, $dx + $dw, $dy + $fold)
 $foldPath.CloseFigure()
-$brushFold = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 48, 48, 60))
+$brushFold = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 42, 38, 36))
 $g.FillPath($brushFold, $foldPath)
 
 # Document text lines (symbolic)
-$penLine = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(180, 161, 161, 166), 4)
+$penLine = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(180, 245, 237, 230), 4)
 $penLine.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
 $penLine.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
 
 # Line 1 (Short title)
 $g.DrawLine($penLine, ($dx + 22), ($dy + 40), ($dx + 68), ($dy + 40))
-# Line 2 (Heading underline)
-$penAccent = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(255, 41, 151, 255), 4)
+# Line 2 (Heading underline - Terracotta Copper)
+$penAccent = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(255, 217, 119, 54), 4)
 $penAccent.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
 $penAccent.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
 $g.DrawLine($penAccent, ($dx + 22), ($dy + 56), ($dx + $dw - 24), ($dy + 56))
 
-# Line 3, 4, 5
-$penSub = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(120, 110, 110, 115), 3.5)
+# Line 3, 4, 5 (Toasted titanium lines)
+$penSub = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(120, 166, 152, 143), 3.5)
 $penSub.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
 $penSub.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
 $g.DrawLine($penSub, ($dx + 22), ($dy + 76), ($dx + $dw - 24), ($dy + 76))
 $g.DrawLine($penSub, ($dx + 22), ($dy + 94), ($dx + $dw - 36), ($dy + 94))
 $g.DrawLine($penSub, ($dx + 22), ($dy + 112), ($dx + 75), ($dy + 112))
 
-# Electric lightning bolt / HTML badge in bottom-right of document
+# Electric lightning bolt / HTML badge in bottom-right (Terracotta Copper gradient)
 $boltPath = New-Object System.Drawing.Drawing2D.GraphicsPath
 $bx = $dx + 52
 $by = $dy + 96
@@ -110,14 +110,14 @@ $boltPath.AddLine($bx + 14, $by + 60, $bx + 38, $by + 22)
 $boltPath.AddLine($bx + 38, $by + 22, $bx + 24, $by + 22)
 $boltPath.CloseFigure()
 
-$brushBoltGlow = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(90, 0, 113, 227))
+$brushBoltGlow = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(90, 217, 119, 54))
 $g.FillEllipse($brushBoltGlow, ($bx - 5), ($by + 5), 52, 52)
 
 $brushBolt = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
     (New-Object System.Drawing.Point $bx, $by),
     (New-Object System.Drawing.Point ($bx + 40), ($by + 60)),
-    [System.Drawing.Color]::FromArgb(255, 96, 185, 255),
-    [System.Drawing.Color]::FromArgb(255, 0, 113, 227)
+    [System.Drawing.Color]::FromArgb(255, 229, 135, 70),
+    [System.Drawing.Color]::FromArgb(255, 184, 91, 30)
 )
 $g.FillPath($brushBolt, $boltPath)
 

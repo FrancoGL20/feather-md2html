@@ -1,6 +1,6 @@
-# Markdown to HTML — Desktop Application (Apple OLED Dark)
+# Markdown to HTML — Desktop Application (Terracotta Copper & Smoked Charcoal Mate)
 
-Aplicación de escritorio nativa para Windows, ultra-rápida (<20ms), ligera y diseñada con los principios de **Apple Design (WWDC)**.
+Aplicación de escritorio nativa para Windows, ultra-rápida (<20ms), ligera y diseñada con una cuidada estética mate de **Terracota Cobre & Carbón Ahumado (Terracotta & Smoked Charcoal)** basada en principios de diseño industrial de alta gama.
 
 Convierte texto Markdown o archivos `.md` en documentos HTML autónomos y profesionales, organizados en una biblioteca local con índice cronológico y navegación cruzada.
 
@@ -62,21 +62,22 @@ Convierte texto Markdown o archivos `.md` en documentos HTML autónomos y profes
 
 ---
 
-## 🎨 Especificaciones de Diseño (Apple HIG)
+## 🎨 Especificaciones de Diseño (Terracotta Copper & Smoked Charcoal Mate)
 
-- Paleta OLED Dark: fondo `#000000`, tarjetas `#141416`, bordes con reflejo de luz sutil.
-- Materiales translúcidos (`backdrop-filter: blur(20px)`).
-- Respuesta física inmediata en pointer-down (`transform: scale(0.97)` en botones).
-- Tipografía SF Pro / system-ui con tracking óptico negativo en títulos grandes.
+- **Paleta Smoked Charcoal Mate:** Fondo negro humo profundo `#0b0a0a`, tarjetas en carbón tostado `#141312`, superficie elevada `#1c1a19` y bordes con reflejo reflectante cálido (`rgba(220, 180, 150, 0.08)`).
+- **Acento Cobre Terracota:** Botones y elementos interactivos en cobre mate `#d97736` con gradiente `linear-gradient(180deg, #d97736 0%, #b85b1e 100%)` y hover `#e58746`.
+- **Tipografía y Legibilidad:** Texto en pergamino suave anti-fatiga `#f5ede6` y titanio tostado `#a6988f`.
+- **Materiales ahumados:** Fondos translúcidos con `backdrop-filter: blur(20px)`.
+- **Respuesta táctil y micro-animaciones:** Curvas de resorte `cubic-bezier(0.16, 1, 0.3, 1)` y retroalimentación táctil `transform: scale(0.97)`.
 
 ---
 
 ## 🧪 Pruebas Automatizadas y Calidad de Código
 
-La aplicación cuenta con una suite integral de 82 pruebas unitarias, de integración, de seguridad y de geometría, sin dependencias externas:
+La aplicación cuenta con una suite integral de 85 pruebas unitarias, de integración, de seguridad y de geometría, sin dependencias externas:
 
 ```powershell
-# Ejecutar suite integral completa (82 tests con métricas en tiempo real):
+# Ejecutar suite integral completa (85 tests con métricas en tiempo real):
 python run_tests.py
 
 # O ejecutar verificación rápida de humo (9 checks):
@@ -84,7 +85,7 @@ python verify_app.py
 ```
 
 ### Módulos de Prueba (`tests/`):
-- **`tests/test_md_engine.py` (42 tests):** Compilador léxico y sintáctico, callouts GitHub, tablas con alineación, atajos `[[kbd:...]]`, jerarquía de listas anidadas, badges de estado, slugify y catálogo cronológico.
+- **`tests/test_md_engine.py` (45 tests):** Compilador léxico y sintáctico, tokens del tema terracota cobre, callouts GitHub, tablas con alineación, atajos `[[kbd:...]]`, jerarquía de listas anidadas, badges de estado, slugify y catálogo cronológico.
 - **`tests/test_app_api.py` (19 tests):** API REST del servidor HTTP local sobre loopback real (`127.0.0.1`), códigos de estado HTTP, endpoints GET/POST, validación y manejo de errores.
 - **`tests/test_window_geometry.py` (7 tests):** Detección de pantallas de escritorio vs. laptops, dimensionamiento adaptativo, límites mínimos y centrado nativo.
 - **`tests/test_config_and_history.py` (9 tests):** Persistencia de configuración, auto-recarga de documentos existentes al abrir la app, recuperación ante JSON corrupto, límite estricto de 10 elementos e higiene de archivos fantasma.

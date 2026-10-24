@@ -391,5 +391,32 @@ class TestCatalogAndNavigation(IsolatedEnvironmentTestCase):
         self.assertIn(res2["filename"], latest_html)
 
 
+class TestTerracottaThemeDesignTokens(unittest.TestCase):
+    """
+    Verifica que el sistema de diseño Terracotta & Smoked Charcoal (Cobre Terracota Carbón Mate)
+    esté correctamente estructurado en COMMON_STYLES y en las plantillas HTML compiladas.
+    """
+
+    def test_dark_mode_tokens(self):
+        self.assertIn("--canvas-bg: #0b0a0a;", md_engine.COMMON_STYLES)
+        self.assertIn("--card-bg: #141312;", md_engine.COMMON_STYLES)
+        self.assertIn("--card-alt-bg: #1c1a19;", md_engine.COMMON_STYLES)
+        self.assertIn("--primary: #d97736;", md_engine.COMMON_STYLES)
+        self.assertIn("--primary-hover: #e58746;", md_engine.COMMON_STYLES)
+        self.assertIn("--text-main: #f5ede6;", md_engine.COMMON_STYLES)
+        self.assertIn("--text-muted: #a6988f;", md_engine.COMMON_STYLES)
+        self.assertIn("--success-badge-text: #48bb78;", md_engine.COMMON_STYLES)
+
+    def test_light_mode_terracotta_tokens(self):
+        self.assertIn("html.light {", md_engine.COMMON_STYLES)
+        self.assertIn("--canvas-bg: #f9f6f3;", md_engine.COMMON_STYLES)
+        self.assertIn("--primary: #b85b1e;", md_engine.COMMON_STYLES)
+        self.assertIn("--primary-hover: #d97736;", md_engine.COMMON_STYLES)
+        self.assertIn("--text-main: #231f1c;", md_engine.COMMON_STYLES)
+
+    def test_favicon_stroke_color(self):
+        self.assertIn("stroke='%23d97736'", md_engine.HTML_DOC_TEMPLATE)
+
+
 if __name__ == "__main__":
     unittest.main()
