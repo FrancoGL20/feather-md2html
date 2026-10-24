@@ -327,7 +327,7 @@ Al hacer doble clic en el acceso directo, Windows invoca `pythonw.exe` en el dir
 
 La aplicación cuenta con dos niveles de validación automatizada:
 
-### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 79 Tests)
+### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 82 Tests)
 
 Para ejecutar la verificación completa de toda la base de código con aislamiento total de disco:
 
@@ -363,12 +363,15 @@ La suite modular utiliza exclusivamente la biblioteca estándar `unittest` (Zero
    - Dimensionamiento adaptativo para laptops ($< 1600\text{px}$) con 85% de ancho y 86% de alto.
    - Centrado matemático en pantalla y límites mínimos de seguridad (680x560px).
    - Resiliencia ante valores nulos, cadenas no numéricas o coordenadas negativas.
-4. **`tests/test_config_and_history.py` (6 tests):**
+4. **`tests/test_config_and_history.py` (9 tests):**
    - Creación automática de archivo `config.json` con valores por defecto.
    - Recuperación automática defensiva ante archivos de configuración corruptos.
    - Deduplicación de historial y reordenamiento del documento más reciente al frente.
    - Límite estricto de los últimos 10 documentos convertidos.
    - Depuración automática de documentos fantasma que hayan sido borrados manualmente fuera de la aplicación.
+   - Auto-recarga y descubrimiento de documentos HTML preexistentes en la carpeta raíz con extracción de título y fecha real.
+   - Exclusión garantizada de `index.html` y `latest.html` del historial de convertidos.
+   - Fusión limpia sin duplicados de archivos untracked con historial existente.
 5. **`tests/test_security.py` (5 tests):**
    - Prevención de Path Traversal en `/assets/` (bloqueo de accesos relativos `../`).
    - Bloqueo de eliminación de archivos ajenos o protegidos (`index.html`, `latest.html`, `.txt`, `.py`).

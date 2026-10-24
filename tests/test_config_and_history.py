@@ -136,6 +136,63 @@ class TestConfigAndHistory(IsolatedEnvironmentTestCase):
         self.assertIn("real_2.html", filenames)
         self.assertNotIn("ghost_deleted.html", filenames, "Nonexistent physical files must be purged")
 
+    def test_auto_reloads_existing_html_files_from_root_dir_on_startup(self):
+        """Verifica que archivos HTML preexistentes en disco se detecten y carguen con su título al iniciar."""
+        f1 = self.test_root / "modulo_a.html"
+        f1.write_text("<!DOCTYPE html><html><head><title>Módulo Alpha</title></head><body>A</body></html>", encoding="utf-8")
+        f2 = self.test_root / "modulo_b.html"
+        f2.write_text("<!DOCTYPE html><html><head><title>Módulo Beta</title></head><body>B</body></html>", encoding="utf-8")
+
+        # config.json arranca sin historial previo
+        cfg = app.get_or_create_config()
+        recents = cfg["recent_conversions"]
+        self.assertEqual(len(recents), 2)
+
+        titles = {r["title"] for r in recents}
+        filenames = {r["filename"] for r in recents}
+        self.assertIn("Módulo Alpha", titles)
+        self.assertIn("Módulo Beta", titles)
+        self.assertIn("modulo_a.html", filenames)
+        self.assertIn("modulo_b.html", filenames)
+
+    def test_auto_reloads_ignores_index_and_latest_html(self):
+        """Verifica que index.html y latest.html nunca se incorporen al historial de convertidos."""
+        (self.test_root / "index.html").write_text("<title>Catálogo</title>", encoding="utf-8")
+        (self.test_root / "latest.html").write_text("<title>Latest</title>", encoding="utf-8")
+        (self.test_root / "documento_valido.html").write_text("<title>Mi Documento</title>", encoding="utf-8")
+
+        cfg = app.get_or_create_config()
+        filenames = [r["filename"] for r in cfg["recent_conversions"]]
+        self.assertIn("documento_valido.html", filenames)
+        self.assertNotIn("index.html", filenames)
+        self.assertNotIn("latest.html", filenames)
+
+    def test_auto_reloads_merges_untracked_files_with_existing_history(self):
+        """Verifica la fusión limpia de archivos untracked con historial existente sin duplicación."""
+        f1 = self.test_root / "doc1.html"
+        f1.write_text("<title>Doc 1</title>", encoding="utf-8")
+        app.add_recent_conversion({
+            "title": "Doc 1 Registrado",
+            "filename": "doc1.html",
+            "file_path": str(f1),
+            "file_url": f"file:///{f1.resolve().as_posix()}",
+            "timestamp": "23/10/2026 06:00 PM"
+        })
+
+        # Creamos un segundo archivo físico que aún no está en config.json
+        f2 = self.test_root / "doc2_nuevo.html"
+        f2.write_text("<title>Doc 2 Nuevo</title>", encoding="utf-8")
+
+        cfg = app.get_or_create_config()
+        filenames = [r["filename"] for r in cfg["recent_conversions"]]
+        self.assertEqual(len(filenames), 2)
+        self.assertIn("doc1.html", filenames)
+        self.assertIn("doc2_nuevo.html", filenames)
+        # El título original registrado de doc1 se respeta
+        doc1_entry = next(r for r in cfg["recent_conversions"] if r["filename"] == "doc1.html")
+        self.assertEqual(doc1_entry["title"], "Doc 1 Registrado")
+
 
 if __name__ == "__main__":
     unittest.main()
+
