@@ -26,10 +26,20 @@ MarkdownToHTML_App/
 ├── config.json                # Configuración persistente (directorio raíz, auto-abrir, historial)
 ├── AGENTS.md                  # Especificación técnica exhaustiva para agentes y desarrolladores
 ├── README.md                  # Guía de usuario y portabilidad para humanos
-├── verify_app.py              # Suite de pruebas automatizadas (5 tests unitarios/integración)
+├── run_tests.py               # Ejecutor maestro de suite integral (79 tests unitarios/API/seguridad)
+├── verify_app.py              # Suite de pruebas de humo rápidas (9 checks automatizados)
 ├── run.bat                    # Lanzador rápido por lotes de Windows (1 clic)
 ├── launch.vbs                 # Lanzador secundario silencioso en VBScript
 ├── install_shortcuts.ps1      # Generador de accesos directos con icono en Escritorio y Menú Inicio
+│
+├── tests/                     # Suite exhaustiva modular (unittest nativo, zero-bloatware)
+│   ├── __init__.py            # Inicializador de paquete de pruebas
+│   ├── test_helpers.py        # Clases base aisladas en carpetas temporales y mocks
+│   ├── test_md_engine.py      # 42 tests: AST, llamadas, tablas, kbd, listas anidadas, slugify
+│   ├── test_app_api.py        # 19 tests: Endpoints REST GET/POST, headers, loopback real
+│   ├── test_window_geometry.py# 7 tests: Dimensiones responsivas de pantalla escritorio vs laptop
+│   ├── test_config_and_history.py # 6 tests: Configuración, límite de 10 ítems y purga de fantasmas
+│   └── test_security.py       # 5 tests: Traversal defense en /assets/, protección y XSS
 │
 ├── ui/
 │   └── index.html             # Interfaz gráfica SPA en Apple OLED Dark (HTML5/CSS3/Vanilla JS)
@@ -228,7 +238,20 @@ En Windows, al ejecutar scripts mediante `pythonw.exe` (modo ventana sin consola
 | `/api/open-folder`| `POST` | Abre el Explorador de Windows en la carpeta raíz | Ninguno | `{ status: "opened" }` |
 | `/api/open-index` | `POST` | Abre `index.html` en el navegador del sistema | Ninguno | `{ status: "opened", url: string }` |
 | `/api/delete-document` | `POST` | Elimina un documento HTML de la biblioteca y del historial | `{ filename?: string, file_path?: string }` | `{ success: bool, filename: string, recent_conversions: array }` |
+| `/api/adjust-window` | `POST` | Ajusta y centra nativamente el tamaño de la ventana según la resolución de la pantalla | `{ screen_w?: number, screen_h?: number }` | `{ success: bool, target_w, target_h, pos_x, pos_y }` |
 | `/api/heartbeat` | `POST` | Refresca el temporizador del watchdog | Ninguno | `{ status: "alive" }` |
+
+### 5.4. Dimensionamiento Dinámico Adaptativo y Control Nativo de Ventana
+
+La aplicación detecta dinámicamente la resolución y escala de la pantalla activa mediante `user32.GetSystemMetrics` y `SetProcessDpiAwareness`:
+
+1. **Monitor Grande de Escritorio ($\ge 1600\text{px}$, ej. 1920x1080, 2K, 4K):**
+   - Inicia con dimensiones compactas (`750x680px`), centrada en pantalla para facilitar el trabajo lado a lado con editores de código o navegadores.
+2. **Laptop o Pantalla Mediana/Pequeña ($< 1600\text{px}$, ej. 1366x768, 1280x720, 1536x864):**
+   - Inicia con tamaño amplio y cómodo (`85%` del ancho y `86%` del alto disponible), garantizando lectura fluida sin solaparse con la barra de tareas.
+3. **Control Nativo Win32 contra Cache de Estado Maximizado:**
+   - Para prevenir que Microsoft Edge recuerde un estado maximizado previo, un hilo en segundo plano localiza la ventana de la app (`find_and_adjust_app_window`), invoca `ShowWindow(hwnd, SW_RESTORE)` y aplica las coordenadas exactas con `SetWindowPos`.
+   - La interfaz cliente (`ui/index.html`) reporta sus métricas reales vía `POST /api/adjust-window` al inicializar para sincronizar entornos multimonitor.
 
 ---
 
@@ -300,24 +323,66 @@ Al hacer doble clic en el acceso directo, Windows invoca `pythonw.exe` en el dir
 
 ---
 
-## 8. Procedimiento de Verificación Automatizada (`verify_app.py`)
+## 8. Arquitectura y Procedimiento de Pruebas Automatizadas
 
-Para certificar que la aplicación y su motor funcionan al 100% en cualquier máquina, ejecutar:
+La aplicación cuenta con dos niveles de validación automatizada:
+
+### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 79 Tests)
+
+Para ejecutar la verificación completa de toda la base de código con aislamiento total de disco:
+
+```powershell
+python "c:\General\MarkdownToHTML_App\run_tests.py"
+```
+
+La suite modular utiliza exclusivamente la biblioteca estándar `unittest` (Zero-Bloatware) y se divide en 5 módulos especializados en `tests/`:
+
+1. **`tests/test_md_engine.py` (42 tests):**
+   - Generación y sanitización de slugs (`slugify`) con caracteres Unicode, acentos y emojis.
+   - Limpieza de títulos en línea (`clean_markdown_inline`) de HTML, imágenes, enlaces y atajos.
+   - Detección inteligente y jerárquica de títulos (`detect_smart_title`) por H1, Setext, H2, H3, Frontmatter YAML, negritas o primera línea.
+   - Badges de estado Apple HIG (`[PASS]`, `[FAIL]`, `[WARN]`, `[INFO]`).
+   - Atajos de teclado físicos (`[[kbd:Ctrl+C]]` -> `<kbd>Ctrl+C</kbd>`).
+   - Formateo en línea, anclajes intra-documento e hipervínculos externos seguros.
+   - Resaltado sintáctico de código para Python, JavaScript, PowerShell y diffs (+/-).
+   - Contenedores de alertas GitHub/Apple con inyección de SVG nativos.
+   - Tablas responsivas con detección y alineación de columnas (`:---`, `:---:`, `---:`).
+   - Jerarquía multinivel de listas anidadas y checklists interactivos.
+   - Integración de catálogo cronológico (`index.html`) y puntero (`latest.html`).
+2. **`tests/test_app_api.py` (19 tests):**
+   - Servidor HTTP en loopback real sobre puerto efímero.
+   - Servicio de SPA `ui/index.html` y cabeceras MIME.
+   - Entrega de recursos estáticos (`/assets/`) y manejo de códigos 404.
+   - Endpoints `/api/config` (GET y POST), persistencia y validación de rutas.
+   - Endpoint `/api/heartbeat` y control del watchdog.
+   - Endpoint `/api/convert` desde texto directo o archivos físicos.
+   - Endpoint `/api/delete-document` con regeneración de índice y catálogo.
+   - Endpoints de orquestación del sistema (`/api/open-file`, `/api/open-folder`, `/api/open-index`, `/api/browse-folder`, `/api/browse-file`).
+3. **`tests/test_window_geometry.py` (7 tests):**
+   - Dimensionamiento responsivo para monitores grandes ($\ge 1600\text{px}$, 1080p, 2K, 4K) en tamaño compacto de 750px de ancho.
+   - Dimensionamiento adaptativo para laptops ($< 1600\text{px}$) con 85% de ancho y 86% de alto.
+   - Centrado matemático en pantalla y límites mínimos de seguridad (680x560px).
+   - Resiliencia ante valores nulos, cadenas no numéricas o coordenadas negativas.
+4. **`tests/test_config_and_history.py` (6 tests):**
+   - Creación automática de archivo `config.json` con valores por defecto.
+   - Recuperación automática defensiva ante archivos de configuración corruptos.
+   - Deduplicación de historial y reordenamiento del documento más reciente al frente.
+   - Límite estricto de los últimos 10 documentos convertidos.
+   - Depuración automática de documentos fantasma que hayan sido borrados manualmente fuera de la aplicación.
+5. **`tests/test_security.py` (5 tests):**
+   - Prevención de Path Traversal en `/assets/` (bloqueo de accesos relativos `../`).
+   - Bloqueo de eliminación de archivos ajenos o protegidos (`index.html`, `latest.html`, `.txt`, `.py`).
+   - Sanitización contra inyección XSS de etiquetas `<script>` en bloques de código y código en línea.
+
+### 8.2. Suite de Verificación Rápida de Humo (`verify_app.py` - 9 Checks)
+
+Diseñada para chequeos rápidos de humo en entornos de despliegue o antes de empaquetar:
 
 ```powershell
 python "c:\General\MarkdownToHTML_App\verify_app.py"
+# O para encadenar la suite completa:
+python "c:\General\MarkdownToHTML_App\verify_app.py" --full
 ```
-
-El script ejecuta 9 pruebas automatizadas:
-1. **Compilación de Texto en Memoria:** Valida que un bloque con tablas, alertas y checklists genere un archivo HTML válido en menos de 50ms.
-2. **Compilación desde Archivo Físico:** Crea un archivo temporal `.md`, lo compila y verifica su persistencia en disco.
-3. **Verificación de Navegación Cruzada:** Confirma que el HTML generado contenga la clase `.top-nav-bar` y los enlaces a `./index.html` y `./latest.html`.
-4. **Verificación del Catálogo (`index.html`):** Comprueba que `index.html` exista, contenga los títulos de todos los documentos y respete el orden cronológico descendente (el más nuevo primero).
-5. **Verificación del Redireccionador (`latest.html`):** Comprueba que `latest.html` redirija al archivo más reciente.
-6. **Detección Inteligente de Títulos:** Valida reconocimiento de H2, primera línea destacada en negrita y Setext.
-7. **Sincronización Automática de Historial:** Verifica purga automática de archivos inexistentes al inicio.
-8. **Eliminación Completa de Documentos:** Valida borrado en disco, regeneración de catálogo e historial.
-9. **Jerarquía y Anidación de Listas:** Comprueba anidación de `<ol>`, `<ul>` de sublistas dentro de `<li>`, reglas de sangría a la derecha (`padding-left`) y checklists anidados.
 
 ---
 
