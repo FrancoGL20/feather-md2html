@@ -1266,6 +1266,9 @@ Este es un reporte con alertas:
       }).catch(() => {});
     }
 
+    // Reload config & recents whenever window gains focus (in case files were added/converted externally)
+    window.addEventListener('focus', loadConfig);
+
     // Initial call
     adjustWindowSize();
     loadConfig();

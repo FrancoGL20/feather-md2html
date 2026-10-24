@@ -42,6 +42,19 @@ DEFAULT_ROOT_DIR = Path.home() / "Downloads" / "Markdown_HTML_Library"
 last_heartbeat = time.time()
 server_instance = None
 
+def extract_title_from_html(file_path: Path) -> str:
+    """Extrae el título de un documento HTML buscando la etiqueta <title> o recurre al stem."""
+    fallback = file_path.stem.replace("-", " ").replace("_", " ").capitalize()
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as fh:
+            head_chunk = fh.read(4000)
+            t_match = re.search(r'<title>(.*?)</title>', head_chunk, re.IGNORECASE)
+            if t_match and t_match.group(1).strip():
+                return t_match.group(1).strip()
+    except Exception:
+        pass
+    return fallback
+
 def get_or_create_config() -> dict:
     config = {
         "root_dir": str(DEFAULT_ROOT_DIR),
@@ -67,14 +80,57 @@ def get_or_create_config() -> dict:
         config["root_dir"] = str(DEFAULT_ROOT_DIR.resolve())
         root_path = DEFAULT_ROOT_DIR
 
-    # Actualizar historial: filtrar únicamente archivos que sigan existiendo físicamente en disco
+    # Actualizar historial: filtrar archivos que sigan existiendo físicamente en disco
     raw_recents = config.get("recent_conversions", [])
     valid_recents = []
+    known_paths = set()
     for item in raw_recents:
-        fp = item.get("file_path")
-        if fp and Path(fp).is_file():
-            valid_recents.append(item)
-    config["recent_conversions"] = valid_recents
+        fp_str = item.get("file_path")
+        if fp_str:
+            fp = Path(fp_str)
+            if fp.is_file():
+                valid_recents.append(item)
+                try:
+                    known_paths.add(str(fp.resolve()).lower())
+                except Exception:
+                    pass
+
+    # Descubrir y recargar archivos HTML preexistentes en la carpeta raíz
+    untracked_items = []
+    if root_path.exists() and root_path.is_dir():
+        for f in root_path.glob("*.html"):
+            if f.name.lower() in ("index.html", "latest.html"):
+                continue
+            try:
+                resolved_f = str(f.resolve()).lower()
+                if resolved_f not in known_paths:
+                    stat = f.stat()
+                    mtime = stat.st_mtime
+                    dt = datetime.fromtimestamp(mtime)
+                    doc_title = extract_title_from_html(f)
+                    untracked_items.append({
+                        "item": {
+                            "title": doc_title,
+                            "filename": f.name,
+                            "file_url": f"file:///{f.resolve().as_posix()}",
+                            "file_path": str(f.resolve()),
+                            "timestamp": dt.strftime("%d/%m/%Y %I:%M %p")
+                        },
+                        "mtime": mtime
+                    })
+            except Exception:
+                continue
+
+    # Si hay archivos preexistentes no registrados, ordenarlos por fecha y anexarlos
+    if untracked_items:
+        untracked_items.sort(key=lambda x: x["mtime"], reverse=True)
+        untracked_list = [entry["item"] for entry in untracked_items]
+        if not valid_recents:
+            valid_recents = untracked_list
+        else:
+            valid_recents.extend(untracked_list)
+
+    config["recent_conversions"] = valid_recents[:10]
 
     save_config(config)
 
