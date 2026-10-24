@@ -11,7 +11,7 @@ La aplicación fue concebida bajo las siguientes premisas fundamentales:
 1. **Velocidad Extrema (< 20ms por documento):** El motor de compilación transforma cualquier documento Markdown complejo en HTML autónomo de manera casi instantánea, utilizando algoritmos de una sola pasada basados en expresiones regulares compiladas y la biblioteca estándar de Python.
 2. **Cero Dependencias Externas (Zero-Bloatware):** No requiere frameworks pesados como Electron (que consumen >150 MB de RAM y cientos de megabytes en disco), ni entornos Node.js en ejecución, ni paquetes externos de `pip` (`tkinter`, `http.server`, `urllib`, `json`, `pathlib`, `re` son parte del runtime nativo de Python).
 3. **Modo App Nativo de Windows:** La interfaz se renderiza utilizando la instancia del motor Chromium embebida en Microsoft Edge / Chrome mediante el switch `--app="http://127.0.0.1:port"`. Esto proporciona aceleración por hardware completa, renderizado de tipografía de ultra-alta definición, soporte para CSS moderno (`backdrop-filter: blur`, variables CSS, layout grid/flexbox) y ventana independiente sin barra de navegación ni pestañas.
-4. **Apple Design System (WWDC HIG):** Interfaz en tema oscuro OLED (`#000000`), materiales de vidrio esmerilado translúcidos, respuesta física inmediata en pointer-down (`transform: scale(0.97)`), curvas de resorte naturales (`cubic-bezier(0.16, 1, 0.3, 1)`) y jerarquía tipográfica basada en el sistema San Francisco / system-ui.
+4. **Estilo Terracota Cobre & Carbón Ahumado Mate (Terracotta & Smoked Charcoal):** Interfaz en tema carbón mate oscuro (`#0b0a0a`), tarjetas en carbón tostado (`#141312`), acentos en cobre terracota (`#d97736`), texto en pergamino suave anti-fatiga (`#f5ede6`) y titanio tostado (`#a6988f`), materiales translúcidos ahumados, respuesta táctil inmediata en pointer-down (`transform: scale(0.97)`), curvas de resorte naturales (`cubic-bezier(0.16, 1, 0.3, 1)`) y jerarquía tipográfica limpia.
 5. **Autocontención y Portabilidad Total:** La carpeta de la aplicación no depende de rutas absolutas del sistema anfitrión. Todas las rutas se resuelven dinámicamente relativas al directorio de ejecución (`Path(__file__).resolve().parent`).
 
 ---
@@ -263,20 +263,26 @@ La interfaz está construida con HTML5 semántico y CSS Vanilla puro sin librer�
 
 ```css
 :root {
-  --canvas: #000000;                       /* Negro OLED profundo */
-  --card: #141416;                         /* Superficie principal */
-  --card-alt: #1a1a1e;                     /* Superficie elevada */
-  --card-hover: #202025;                   /* Hover sutil */
-  --border: rgba(255, 255, 255, 0.08);     /* Borde reflectante */
-  --border-focus: #2997ff;                 /* Azul Apple interactivo */
-  --text: #f5f5f7;                         /* Texto principal de alto contraste */
-  --text-muted: #a1a1a6;                   /* Metadatos y etiquetas secundarias */
-  --text-faint: #6e6e73;                   /* Texto terciario */
-  --primary: #2997ff;                      /* Acento Apple WWDC */
-  --primary-hover: #47a7ff;                /* Acento iluminado */
-  --primary-surface: rgba(41, 151, 255, 0.12); /* Vidrio tintado */
-  --success: #30d158;                      /* Verde Apple para confirmaciones */
-  --spring: cubic-bezier(0.16, 1, 0.3, 1); /* Física de resorte Apple */
+  --canvas: #0b0a0a;                       /* Negro humo profundo mate */
+  --card: #141312;                         /* Carbón tostado mate */
+  --card-alt: #1c1a19;                     /* Superficie elevada */
+  --card-hover: #252220;                   /* Hover suave cálido */
+  --border: rgba(220, 180, 150, 0.08);     /* Borde reflectante cálido */
+  --border-focus: #d97736;                 /* Cobre Terracota interactivo */
+  --text: #f5ede6;                         /* Pergamino suave anti-fatiga */
+  --text-muted: #a6988f;                   /* Titanio tostado */
+  --text-faint: #6e645d;                   /* Texto terciario tierra cálida */
+  --primary: #d97736;                      /* Cobre Terracota mate */
+  --primary-hover: #e58746;                /* Cobre terracota iluminado */
+  --primary-surface: rgba(217, 119, 54, 0.12); /* Vidrio cobre tintado */
+  --btn-bg: linear-gradient(180deg, #d97736 0%, #b85b1e 100%);
+  --btn-hover: linear-gradient(180deg, #e58746 0%, #c76729 100%);
+  --btn-shadow: 0 4px 16px rgba(217, 119, 54, 0.28);
+  --btn-text: #ffffff;
+  --success: #48bb78;                      /* Verde esmeralda mate cálido */
+  --success-surface: rgba(72, 187, 120, 0.12);
+  --danger: #e53e3e;
+  --spring: cubic-bezier(0.16, 1, 0.3, 1); /* Física de resorte */
 }
 ```
 
@@ -294,7 +300,7 @@ La interfaz está construida con HTML5 semántico y CSS Vanilla puro sin librer�
    - **Pestaña 1 (Pegar Markdown):** Área de texto con scroll suave, contador dinámico en tiempo real de caracteres y palabras, botón directo de pegar desde el portapapeles y botón de limpiar.
    - **Pestaña 2 (Archivo .md):** Zona de arrastrar y soltar (Drag & Drop) con soporte para eventos `dragover` / `drop` y lectura inmediata vía `FileReader`, además de botón para examinar mediante el explorador del sistema.
 4. **Botón Principal de Conversión:**
-   - Gradiente azul Apple con resplandor exterior (`box-shadow: 0 4px 14px rgba(0, 113, 227, 0.4)`).
+   - Gradiente cobre terracota mate con resplandor cálido (`box-shadow: 0 4px 16px rgba(217, 119, 54, 0.28)`).
    - Atajo de teclado global: `Ctrl + Enter` (o `Cmd + Enter`) compila inmediatamente sin usar el ratón.
 5. **Tarjeta de Resultados Fluida:**
    - Oculta por defecto; se materializa con animación física de resorte tras la compilación.
@@ -327,7 +333,7 @@ Al hacer doble clic en el acceso directo, Windows invoca `pythonw.exe` en el dir
 
 La aplicación cuenta con dos niveles de validación automatizada:
 
-### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 82 Tests)
+### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 85 Tests)
 
 Para ejecutar la verificación completa de toda la base de código con aislamiento total de disco:
 
@@ -337,7 +343,8 @@ python "c:\General\MarkdownToHTML_App\run_tests.py"
 
 La suite modular utiliza exclusivamente la biblioteca estándar `unittest` (Zero-Bloatware) y se divide en 5 módulos especializados en `tests/`:
 
-1. **`tests/test_md_engine.py` (42 tests):**
+1. **`tests/test_md_engine.py` (45 tests):**
+   - Validación exhaustiva de tokens y colores del tema Terracotta & Smoked Charcoal (`TestTerracottaThemeDesignTokens`).
    - Generación y sanitización de slugs (`slugify`) con caracteres Unicode, acentos y emojis.
    - Limpieza de títulos en línea (`clean_markdown_inline`) de HTML, imágenes, enlaces y atajos.
    - Detección inteligente y jerárquica de títulos (`detect_smart_title`) por H1, Setext, H2, H3, Frontmatter YAML, negritas o primera línea.
