@@ -223,6 +223,25 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             self.send_json({"status": "alive"})
             return
 
+        if path == "/api/adjust-window":
+            sw = payload.get("screen_w")
+            sh = payload.get("screen_h")
+            tw, th, px, py = get_dynamic_window_geometry(sw, sh)
+            threading.Thread(
+                target=find_and_adjust_app_window,
+                args=(tw, th, px, py),
+                kwargs={"retries": 15},
+                daemon=True
+            ).start()
+            self.send_json({
+                "success": True,
+                "target_w": tw,
+                "target_h": th,
+                "pos_x": px,
+                "pos_y": py
+            })
+            return
+
         if path == "/api/config":
             config = get_or_create_config()
             if "root_dir" in payload and payload["root_dir"]:
@@ -435,9 +454,109 @@ def find_free_port() -> int:
         s.bind(('127.0.0.1', 0))
         return s.getsockname()[1]
 
+def get_dynamic_window_geometry(screen_w: int = None, screen_h: int = None):
+    """Calcula las dimensiones ideales de la ventana según la resolución de la pantalla."""
+    if not screen_w or not screen_h:
+        try:
+            import ctypes
+            try:
+                ctypes.windll.shcore.SetProcessDpiAwareness(2)
+            except Exception:
+                try:
+                    ctypes.windll.user32.SetProcessDPIAware()
+                except Exception:
+                    pass
+            u = ctypes.windll.user32
+            screen_w = u.GetSystemMetrics(0)
+            screen_h = u.GetSystemMetrics(1)
+        except Exception:
+            screen_w = 1920
+            screen_h = 1080
+
+    try:
+        screen_w = int(screen_w)
+        screen_h = int(screen_h)
+    except Exception:
+        screen_w, screen_h = 1920, 1080
+
+    if screen_w >= 1600:
+        # Monitor grande (Escritorio / 1080p+, 2K, 4K):
+        # Iniciar más pequeño y compacto, ideal para multitarea
+        target_w = 750
+        target_h = min(680, max(560, int(screen_h * 0.68)))
+    else:
+        # Laptop o pantalla mediana/pequeña (< 1600px de ancho, ej. 1366x768, 1280x720, 1440x900):
+        # Iniciar más o menos grande (85% ancho y 86% alto disponible)
+        target_w = max(680, min(1280, int(screen_w * 0.85)))
+        target_h = max(560, min(760, int(screen_h * 0.86)))
+
+    pos_x = max(0, (screen_w - target_w) // 2)
+    pos_y = max(0, (screen_h - target_h) // 2)
+    return target_w, target_h, pos_x, pos_y
+
+def find_and_adjust_app_window(target_w: int, target_h: int, pos_x: int = None, pos_y: int = None, retries: int = 25):
+    """Localiza la ventana de Edge/Chrome de la app y ajusta su tamaño y posición nativa."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+
+        SW_RESTORE = 9
+        SWP_NOZORDER = 0x0004
+        SWP_SHOWWINDOW = 0x0040
+
+        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+
+        for _ in range(retries):
+            found_hwnds = []
+
+            def enum_cb(hwnd, lparam):
+                if user32.IsWindowVisible(hwnd):
+                    length = user32.GetWindowTextLengthW(hwnd)
+                    if length > 0:
+                        buff = ctypes.create_unicode_buffer(length + 1)
+                        user32.GetWindowTextW(hwnd, buff, length + 1)
+                        if "Markdown to HTML" in buff.value:
+                            found_hwnds.append(hwnd)
+                return True
+
+            user32.EnumWindows(WNDENUMPROC(enum_cb), 0)
+
+            if found_hwnds:
+                for hwnd in found_hwnds:
+                    # Desmaximizar si el navegador recordó estado maximizado
+                    user32.ShowWindow(hwnd, SW_RESTORE)
+
+                    # Centrar respetando el monitor donde está la ventana
+                    rect = wintypes.RECT()
+                    if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+                        curr_center_x = (rect.left + rect.right) // 2
+                        curr_center_y = (rect.top + rect.bottom) // 2
+                        final_x = max(0, curr_center_x - (target_w // 2))
+                        final_y = max(0, curr_center_y - (target_h // 2))
+                    else:
+                        final_x = pos_x if pos_x is not None else 100
+                        final_y = pos_y if pos_y is not None else 80
+
+                    user32.SetWindowPos(
+                        hwnd, 0,
+                        final_x, final_y,
+                        target_w, target_h,
+                        SWP_NOZORDER | SWP_SHOWWINDOW
+                    )
+                log_debug(f"Ventana ajustada nativamente a {target_w}x{target_h}")
+                return True
+
+            time.sleep(0.2)
+    except Exception as e:
+        log_debug(f"Aviso ajustando geometría de ventana: {e}")
+    return False
+
 def launch_desktop_window(port: int):
     """Lanza la ventana de la app usando Microsoft Edge en modo aplicación o navegador."""
     url = f"http://127.0.0.1:{port}"
+    target_w, target_h, pos_x, pos_y = get_dynamic_window_geometry()
+
     edge_candidates = [
         r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
         r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
@@ -455,8 +574,21 @@ def launch_desktop_window(port: int):
 
     if target_exe:
         try:
-            log_debug(f"Iniciando ventana de app: {target_exe} --app={url}")
-            subprocess.Popen([target_exe, f"--app={url}"])
+            cmd = [
+                target_exe,
+                f"--app={url}",
+                f"--window-size={target_w},{target_h}",
+                f"--window-position={pos_x},{pos_y}",
+            ]
+            log_debug(f"Iniciando ventana de app ({target_w}x{target_h} @ {pos_x},{pos_y}): {' '.join(cmd)}")
+            subprocess.Popen(cmd)
+
+            # Hilo defensivo para garantizar el tamaño en caso de restaurar estado previo
+            threading.Thread(
+                target=find_and_adjust_app_window,
+                args=(target_w, target_h, pos_x, pos_y),
+                daemon=True
+            ).start()
             return
         except Exception as e:
             log_debug(f"Aviso al lanzar modo app: {e}")

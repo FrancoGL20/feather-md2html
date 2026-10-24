@@ -36,6 +36,7 @@
       flex-direction: column;
       user-select: none;
       -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
     }
 
     /* App Shell */
@@ -43,45 +44,53 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0.9rem 1.4rem;
+      padding: clamp(0.6rem, 1.8vw, 0.9rem) clamp(0.75rem, 2.5vw, 1.4rem);
       border-bottom: 1px solid var(--border);
-      background-color: rgba(20, 20, 22, 0.7);
+      background-color: rgba(20, 20, 22, 0.75);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       position: sticky;
       top: 0;
       z-index: 100;
+      gap: 0.5rem;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 0.65rem;
+      gap: 0.6rem;
+      min-width: 0;
     }
 
     .brand img {
-      width: 28px;
-      height: 28px;
-      border-radius: 7px;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      flex-shrink: 0;
     }
 
     .brand-title {
-      font-size: 1.05rem;
+      font-size: clamp(0.92rem, 2.4vw, 1.05rem);
       font-weight: 650;
       letter-spacing: -0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .status-capsule {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      padding: 0.25rem 0.65rem;
+      gap: 0.35rem;
+      padding: 0.22rem 0.6rem;
       border-radius: 9999px;
       background: var(--success-surface);
       color: var(--success);
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 600;
       border: 1px solid rgba(48, 209, 88, 0.25);
+      flex-shrink: 0;
+      white-space: nowrap;
     }
 
     .status-dot {
@@ -97,10 +106,10 @@
       max-width: 860px;
       width: 100%;
       margin: 0 auto;
-      padding: 1.4rem 1.2rem 3rem 1.2rem;
+      padding: clamp(0.75rem, 2vw, 1.25rem) clamp(0.65rem, 2.5vw, 1.25rem) 2.5rem;
       display: flex;
       flex-direction: column;
-      gap: 1.2rem;
+      gap: clamp(0.75rem, 1.8vw, 1.15rem);
     }
 
     /* Directory & Settings Bar */
@@ -108,44 +117,47 @@
       background-color: var(--card);
       border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 0.9rem 1.15rem;
+      padding: clamp(0.75rem, 1.8vw, 0.95rem) clamp(0.75rem, 2vw, 1.15rem);
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 0.7rem;
     }
 
     .dir-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.8rem;
+      gap: 0.65rem;
       flex-wrap: wrap;
     }
 
     .dir-info {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.45rem;
       min-width: 0;
-      flex: 1;
+      flex: 1 1 240px;
     }
 
     .dir-icon {
       color: var(--primary);
       display: flex;
       align-items: center;
+      flex-shrink: 0;
     }
 
     .dir-label {
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       font-weight: 600;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
 
     .dir-path {
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       color: var(--text);
       white-space: nowrap;
@@ -154,28 +166,34 @@
       background: rgba(255, 255, 255, 0.04);
       padding: 0.2rem 0.5rem;
       border-radius: 6px;
-      max-width: 440px;
+      min-width: 0;
+      flex: 1;
+      max-width: 100%;
       border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .dir-actions {
       display: flex;
       gap: 0.4rem;
+      flex-shrink: 0;
     }
 
     .btn-compact {
       background-color: var(--card-alt);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 0.35rem 0.7rem;
+      padding: 0.32rem 0.65rem;
       border-radius: 8px;
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 550;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 0.35rem;
       transition: all 120ms ease;
+      white-space: nowrap;
+      user-select: none;
     }
 
     .btn-compact:hover {
@@ -191,7 +209,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
+      gap: 0.75rem;
       padding-top: 0.65rem;
       border-top: 1px solid rgba(255, 255, 255, 0.05);
       flex-wrap: wrap;
@@ -201,22 +219,23 @@
     .switch-label {
       display: inline-flex;
       align-items: center;
-      gap: 0.6rem;
-      font-size: 0.82rem;
+      gap: 0.55rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
       cursor: pointer;
     }
 
     .switch-input {
       position: relative;
-      width: 38px;
-      height: 22px;
+      width: 36px;
+      height: 20px;
       appearance: none;
       background-color: #333336;
       border-radius: 9999px;
       outline: none;
       cursor: pointer;
       transition: background-color 200ms ease;
+      flex-shrink: 0;
     }
 
     .switch-input::after {
@@ -224,8 +243,8 @@
       position: absolute;
       top: 2px;
       left: 2px;
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
       background-color: #ffffff;
       transition: transform 200ms var(--spring);
@@ -244,12 +263,13 @@
     .library-link-btn {
       color: var(--primary);
       text-decoration: none;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 550;
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
       transition: opacity 120ms ease;
+      white-space: nowrap;
     }
     .library-link-btn:hover { opacity: 0.8; text-decoration: underline; }
 
@@ -258,20 +278,21 @@
       background-color: var(--card);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 1.25rem;
+      padding: clamp(0.85rem, 2vw, 1.25rem);
       display: flex;
       flex-direction: column;
-      gap: 0.9rem;
+      gap: 0.85rem;
     }
 
     /* Tabs */
     .tabs-header {
       display: flex;
-      gap: 0.4rem;
+      gap: 0.35rem;
       background: var(--card-alt);
       padding: 0.25rem;
       border-radius: 10px;
       width: fit-content;
+      max-width: 100%;
       border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
@@ -279,15 +300,17 @@
       background: transparent;
       border: none;
       color: var(--text-muted);
-      padding: 0.4rem 0.9rem;
+      padding: 0.38rem 0.85rem;
       border-radius: 7px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 550;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 0.45rem;
       transition: all 120ms ease;
+      white-space: nowrap;
     }
 
     .tab-btn.active {
@@ -305,9 +328,9 @@
       background: var(--card-alt);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 0.65rem 0.9rem;
+      padding: 0.6rem 0.85rem;
       border-radius: 10px;
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       font-family: inherit;
       outline: none;
       transition: all 150ms ease;
@@ -325,14 +348,15 @@
 
     .md-textarea {
       width: 100%;
-      height: 250px;
+      height: clamp(160px, 24vh, 230px);
+      min-height: 120px;
       background: var(--canvas);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 0.85rem;
+      padding: 0.8rem;
       border-radius: 10px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.85rem;
+      font-size: 0.84rem;
       line-height: 1.5;
       resize: vertical;
       outline: none;
@@ -348,20 +372,23 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       color: var(--text-faint);
+      gap: 0.5rem;
+      flex-wrap: wrap;
     }
 
     .textarea-actions {
       display: flex;
       gap: 0.4rem;
+      flex-shrink: 0;
     }
 
     /* File Drop Zone */
     .dropzone {
       border: 2px dashed rgba(255, 255, 255, 0.15);
       border-radius: 12px;
-      padding: 2.5rem 1.5rem;
+      padding: clamp(1.4rem, 3.5vw, 2.2rem) 1rem;
       text-align: center;
       background-color: rgba(255, 255, 255, 0.02);
       cursor: pointer;
@@ -369,7 +396,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.55rem;
     }
 
     .dropzone:hover, .dropzone.dragover {
@@ -379,7 +406,7 @@
 
     .dropzone-icon {
       color: var(--primary);
-      font-size: 2rem;
+      font-size: 1.8rem;
     }
 
     .selected-file-badge {
@@ -388,9 +415,10 @@
       justify-content: space-between;
       background: var(--card-alt);
       border: 1px solid var(--border);
-      padding: 0.65rem 0.9rem;
+      padding: 0.6rem 0.85rem;
       border-radius: 10px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
+      gap: 0.5rem;
     }
 
     /* Convert Button */
@@ -399,17 +427,18 @@
       color: #ffffff;
       border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 12px;
-      padding: 0.85rem 1.5rem;
-      font-size: 0.95rem;
+      padding: 0.75rem 1.4rem;
+      font-size: 0.92rem;
       font-weight: 650;
       letter-spacing: -0.01em;
       cursor: pointer;
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.45rem;
       box-shadow: 0 4px 14px rgba(0, 113, 227, 0.4);
       transition: all 120ms var(--spring);
+      width: 100%;
     }
 
     .convert-btn:hover {
@@ -419,7 +448,7 @@
     }
 
     .convert-btn:active {
-      transform: scale(0.97);
+      transform: scale(0.98);
     }
 
     /* Result Card */
@@ -428,9 +457,9 @@
       background: var(--card);
       border: 1px solid rgba(48, 209, 88, 0.35);
       border-radius: 16px;
-      padding: 1.25rem;
+      padding: clamp(0.85rem, 2vw, 1.25rem);
       flex-direction: column;
-      gap: 0.9rem;
+      gap: 0.85rem;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
       animation: springIn 240ms var(--spring) forwards;
     }
@@ -444,26 +473,32 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.8rem;
+      gap: 0.6rem;
+      flex-wrap: wrap;
     }
 
     .result-title-group {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.5rem;
+      min-width: 0;
+      flex: 1;
     }
 
     .result-title {
-      font-size: 1.05rem;
+      font-size: 0.98rem;
       font-weight: 650;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .result-path-box {
       background: var(--canvas);
-      padding: 0.55rem 0.85rem;
+      padding: 0.5rem 0.75rem;
       border-radius: 8px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
       border: 1px solid var(--border);
       word-break: break-all;
@@ -471,22 +506,24 @@
 
     .result-actions {
       display: flex;
-      gap: 0.6rem;
+      gap: 0.5rem;
       flex-wrap: wrap;
     }
 
     .btn-action {
-      padding: 0.55rem 1rem;
-      border-radius: 10px;
-      font-size: 0.82rem;
+      padding: 0.48rem 0.85rem;
+      border-radius: 9px;
+      font-size: 0.78rem;
       font-weight: 600;
       text-decoration: none;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 0.45rem;
+      justify-content: center;
+      gap: 0.4rem;
       border: 1px solid transparent;
       transition: all 120ms ease;
+      white-space: nowrap;
     }
 
     .btn-action:active { transform: scale(0.96); }
@@ -508,14 +545,14 @@
     .recent-section {
       display: flex;
       flex-direction: column;
-      gap: 0.65rem;
+      gap: 0.6rem;
     }
 
     .recent-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.82rem;
+      font-size: 0.78rem;
       color: var(--text-muted);
       font-weight: 600;
       text-transform: uppercase;
@@ -532,11 +569,11 @@
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 0.65rem 0.95rem;
+      padding: clamp(0.55rem, 1.5vw, 0.7rem) clamp(0.65rem, 2vw, 0.95rem);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 0.8rem;
+      gap: 0.7rem;
       transition: all 120ms ease;
     }
 
@@ -548,28 +585,50 @@
     .recent-info {
       display: flex;
       flex-direction: column;
-      gap: 0.15rem;
+      gap: 0.2rem;
       min-width: 0;
+      flex: 1;
     }
 
     .recent-item-title {
-      font-size: 0.86rem;
+      font-size: 0.85rem;
       font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-      font-size: 0.74rem;
+    .recent-item-meta {
+      font-size: 0.73rem;
       color: var(--text-faint);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
     }
 
     .recent-item-meta code {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       background: rgba(255, 255, 255, 0.05);
       padding: 0.1rem 0.35rem;
       border-radius: 4px;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .recent-actions-group {
+      display: flex;
+      gap: 0.35rem;
+      align-items: center;
+      flex-shrink: 0;
     }
 
     .btn-delete {
@@ -612,9 +671,9 @@
       background: #1e1e24;
       border: 1px solid rgba(255, 255, 255, 0.15);
       color: #ffffff;
-      padding: 0.6rem 1.1rem;
+      padding: 0.55rem 1rem;
       border-radius: 9999px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 550;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
       opacity: 0;
@@ -625,6 +684,90 @@
     .toast.show {
       transform: translateX(-50%) translateY(0);
       opacity: 1;
+    }
+
+    /* Responsive Media Queries */
+    @media (max-width: 620px) {
+      .dir-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.55rem;
+      }
+      .dir-info {
+        width: 100%;
+        flex: none;
+      }
+      .dir-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.4rem;
+      }
+      .dir-actions .btn-compact {
+        justify-content: center;
+        width: 100%;
+      }
+      .options-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.55rem;
+      }
+      .library-link-btn {
+        align-self: flex-start;
+      }
+      .result-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.4rem;
+      }
+      .btn-action {
+        width: 100%;
+      }
+      .recent-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.55rem;
+      }
+      .recent-actions-group {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0.35rem;
+      }
+      .recent-actions-group .btn-compact {
+        justify-content: center;
+        width: 100%;
+        padding: 0.32rem 0.35rem;
+        font-size: 0.74rem;
+      }
+      .recent-item-meta code {
+        max-width: 100%;
+      }
+    }
+
+    @media (max-width: 440px) {
+      .brand-title {
+        font-size: 0.9rem;
+      }
+      .tabs-header {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .tab-btn {
+        justify-content: center;
+      }
+      .textarea-tools {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .textarea-actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+      .result-actions {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -824,7 +967,7 @@ Este es un reporte con alertas:
             <span class="recent-item-title" title="${escapeHtml(item.title || item.filename)}">${escapeHtml(item.title || item.filename)}</span>
             <span class="recent-item-meta"><code>${escapeHtml(item.filename)}</code> · 📅 ${escapeHtml(item.timestamp || '')}</span>
           </div>
-          <div style="display: flex; gap: 0.4rem; align-items: center;">
+          <div class="recent-actions-group">
             <button class="btn-compact" onclick="openUrl('${escapeAttr(item.file_url)}')" title="Abrir en el navegador">🌐 Abrir</button>
             <button class="btn-compact" onclick="copyText('${escapeAttr(item.file_url)}', 'Enlace copiado al portapapeles')" title="Copiar enlace">📋 Copiar</button>
             <button class="btn-compact btn-delete" onclick="deleteRecentDoc('${escapeAttr(item.filename)}', '${escapeAttr(item.file_path)}', '${escapeAttr(item.title || item.filename)}')" title="Eliminar documento y borrar archivo HTML">🗑️ Eliminar</button>
@@ -1094,7 +1237,37 @@ Este es un reporte con alertas:
     sendHeartbeat();
     setInterval(sendHeartbeat, 3000);
 
+    // Dynamic Window Sizing (Compact on large monitors, comfortable & spacious on laptops)
+    function adjustWindowSize() {
+      const sw = window.screen.availWidth || window.screen.width;
+      const sh = window.screen.availHeight || window.screen.height;
+      if (!sw || !sh) return;
+
+      let targetW, targetH;
+      if (sw >= 1600) {
+        targetW = 750;
+        targetH = Math.min(680, Math.round(sh * 0.68));
+      } else {
+        targetW = Math.max(680, Math.min(1280, Math.round(sw * 0.85)));
+        targetH = Math.max(560, Math.min(760, Math.round(sh * 0.86)));
+      }
+      const posX = Math.max(0, Math.round((sw - targetW) / 2));
+      const posY = Math.max(0, Math.round((sh - targetH) / 2));
+
+      try {
+        window.resizeTo(targetW, targetH);
+        window.moveTo(posX, posY);
+      } catch (e) {}
+
+      fetch('/api/adjust-window', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ screen_w: sw, screen_h: sh })
+      }).catch(() => {});
+    }
+
     // Initial call
+    adjustWindowSize();
     loadConfig();
     updateCounters();
   </script>
