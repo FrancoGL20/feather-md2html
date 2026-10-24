@@ -31,70 +31,70 @@ ALERT_ICONS = {
 
 COMMON_STYLES = """
 :root {
-  --canvas-bg: #0b0a0a;
-  --card-bg: #141312;
-  --card-alt-bg: #1c1a19;
-  --border-color: rgba(220, 180, 150, 0.08);
-  --border-subtle: rgba(220, 180, 150, 0.04);
-  --text-main: #f5ede6;
-  --text-muted: #a6988f;
-  --text-faint: #6e645d;
-  --primary: #d97736;
-  --primary-hover: #e58746;
-  --primary-surface: rgba(217, 119, 54, 0.12);
-  --code-block-bg: #0d0c0b;
-  --code-block-header: #171513;
-  --code-block-text: #f5ede6;
-  --code-inline-bg: rgba(217, 119, 54, 0.1);
-  --code-inline-text: #f5ede6;
-  --table-stripe: rgba(220, 180, 150, 0.02);
-  --table-hover: rgba(217, 119, 54, 0.06);
-  --accent-badge-bg: rgba(217, 119, 54, 0.15);
-  --accent-badge-text: #e58746;
-  --success-badge-bg: rgba(72, 187, 120, 0.14);
-  --success-badge-text: #48bb78;
-  --warning-badge-bg: rgba(237, 137, 54, 0.16);
-  --warning-badge-text: #ed8936;
-  --danger-badge-bg: rgba(229, 62, 62, 0.16);
-  --danger-badge-text: #e53e3e;
-  --shadow-card: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(220, 180, 150, 0.08);
+  --canvas-bg: #070708;
+  --card-bg: #111114;
+  --card-alt-bg: #17181c;
+  --border-color: rgba(255, 255, 255, 0.07);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-faint: #64748b;
+  --primary: #f97316;
+  --primary-hover: #fb923c;
+  --primary-surface: rgba(249, 115, 22, 0.14);
+  --code-block-bg: #0b0b0e;
+  --code-block-header: #15151a;
+  --code-block-text: #f8fafc;
+  --code-inline-bg: rgba(249, 115, 22, 0.12);
+  --code-inline-text: #fb923c;
+  --table-stripe: rgba(255, 255, 255, 0.02);
+  --table-hover: rgba(249, 115, 22, 0.06);
+  --accent-badge-bg: rgba(249, 115, 22, 0.15);
+  --accent-badge-text: #fb923c;
+  --success-badge-bg: rgba(16, 185, 129, 0.14);
+  --success-badge-text: #10b981;
+  --warning-badge-bg: rgba(245, 158, 11, 0.16);
+  --warning-badge-text: #f59e0b;
+  --danger-badge-bg: rgba(239, 68, 68, 0.16);
+  --danger-badge-text: #ef4444;
+  --shadow-card: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.07);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow-float: 0 20px 50px rgba(0, 0, 0, 0.8);
-  --glass-bg: rgba(20, 19, 18, 0.85);
-  --glass-border: rgba(220, 180, 150, 0.12);
+  --glass-bg: rgba(17, 17, 20, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.1);
   --spring-curve: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 html.light {
-  --canvas-bg: #f9f6f3;
+  --canvas-bg: #f8fafc;
   --card-bg: #ffffff;
-  --card-alt-bg: rgba(217, 119, 54, 0.035);
-  --border-color: rgba(184, 91, 30, 0.14);
-  --border-subtle: rgba(184, 91, 30, 0.07);
-  --text-main: #231f1c;
-  --text-muted: #7c726b;
-  --text-faint: #9c9188;
-  --primary: #b85b1e;
-  --primary-hover: #d97736;
-  --primary-surface: rgba(217, 119, 54, 0.1);
-  --code-block-bg: #211e1c;
-  --code-block-header: #2d2926;
-  --code-block-text: #f5ede6;
-  --code-inline-bg: rgba(217, 119, 54, 0.08);
-  --code-inline-text: #9a4812;
-  --table-stripe: rgba(217, 119, 54, 0.025);
-  --table-hover: rgba(217, 119, 54, 0.06);
-  --accent-badge-bg: rgba(217, 119, 54, 0.12);
-  --accent-badge-text: #b85b1e;
-  --success-badge-bg: rgba(72, 187, 120, 0.14);
-  --success-badge-text: #2f855a;
-  --warning-badge-bg: rgba(221, 107, 32, 0.14);
-  --warning-badge-text: #c05621;
-  --danger-badge-bg: rgba(229, 62, 62, 0.14);
-  --danger-badge-text: #c53030;
-  --shadow-card: 0 4px 16px rgba(40, 30, 20, 0.04), 0 20px 44px -10px rgba(40, 30, 20, 0.08);
+  --card-alt-bg: rgba(249, 115, 22, 0.035);
+  --border-color: rgba(217, 87, 6, 0.14);
+  --border-subtle: rgba(217, 87, 6, 0.07);
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --primary: #c2410c;
+  --primary-hover: #ea580c;
+  --primary-surface: rgba(249, 115, 22, 0.1);
+  --code-block-bg: #0f172a;
+  --code-block-header: #1e293b;
+  --code-block-text: #f8fafc;
+  --code-inline-bg: rgba(249, 115, 22, 0.08);
+  --code-inline-text: #c2410c;
+  --table-stripe: rgba(249, 115, 22, 0.025);
+  --table-hover: rgba(249, 115, 22, 0.06);
+  --accent-badge-bg: rgba(249, 115, 22, 0.12);
+  --accent-badge-text: #c2410c;
+  --success-badge-bg: rgba(16, 185, 129, 0.14);
+  --success-badge-text: #059669;
+  --warning-badge-bg: rgba(245, 158, 11, 0.14);
+  --warning-badge-text: #d97706;
+  --danger-badge-bg: rgba(239, 68, 68, 0.14);
+  --danger-badge-text: #dc2626;
+  --shadow-card: 0 4px 16px rgba(15, 23, 42, 0.04), 0 20px 44px -10px rgba(15, 23, 42, 0.08);
   --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(220, 180, 150, 0.4);
+  --glass-border: rgba(249, 115, 22, 0.3);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -490,7 +490,7 @@ HTML_DOC_TEMPLATE = """<!DOCTYPE html>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{title}</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d97736' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'></path><polyline points='14 2 14 8 20 8'></polyline></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'></path><polyline points='14 2 14 8 20 8'></polyline></svg>">
   <style>
 {styles}
   </style>
@@ -1293,7 +1293,7 @@ def generate_index_html(root_dir: Path) -> Path:
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Índice de Documentos HTML</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d97736' stroke-width='2'><path d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'></path></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2'><path d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'></path></svg>">
   <style>
 {COMMON_STYLES}
 
@@ -1583,7 +1583,7 @@ def generate_latest_redirect(root_dir: Path, newest_file: Path, doc_title: str) 
   <meta charset="UTF-8">
   <meta http-equiv="refresh" content="0; url=./{rel_name}">
   <title>Redirigiendo al más reciente...</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d97736' stroke-width='2'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2'></polygon></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2'></polygon></svg>">
   <style>
 {COMMON_STYLES}
   </style>
