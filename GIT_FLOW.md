@@ -1,238 +1,278 @@
-# Manual de Flujo de Trabajo Git Flow y Estándares de Ingeniería
+# Manual de Flujo de Trabajo Git Flow y Ciclo de Vida de Ingeniería
 
-Este documento establece el protocolo oficial de **Git Flow**, convenciones de commits y ciclo de vida de desarrollo para el proyecto **Markdown to HTML Desktop App**. Tanto agentes autónomos como desarrolladores humanos deben seguir estrictamente este flujo para garantizar estabilidad, trazabilidad y cero regresiones.
-
----
-
-## 1. Principios Fundamentales
-
-1. **Aislamiento Total de Cambios:** Ningún cambio de código o refactorización se realiza directamente sobre `master` o `develop`. Todo cambio nace en una rama de trabajo dedicada.
-2. **Estabilidad Absoluta en `develop`:** La rama `develop` debe estar en estado compilable, funcional y con el 100% de la suite de pruebas (`run_tests.py` y `verify_app.py`) en verde en todo momento.
-3. **Producción Intocable en `master`:** `master` refleja exclusivamente versiones estables en producción, etiquetadas con Tags de Versionado Semántico (SemVer: `vMAJOR.MINOR.PATCH`).
-4. **Commits Semánticos Atómicos:** Cada commit debe representar una unidad lógica e indivisible de cambio siguiendo la especificación *Conventional Commits*.
-5. **Zero-Bloatware:** Prohibido incorporar dependencias externas pesadas o no autorizadas (`node_modules`, paquetes no estándar en `pip`).
-6. **Mejora Continua:** Este documento es un contexto vivo. Si se detecta una nueva necesidad, caso de borde o mejora de proceso, el protocolo se actualiza eVersiona.
+Este documento establece el marco operativo y metodológico oficial para el desarrollo, evolución y mantenimiento de **Markdown to HTML Desktop App**. Su objetivo es normar tanto la interacción consultiva como la ejecución técnica rigurosa de agentes de IA y desarrolladores humanos.
 
 ---
 
-## 2. Mapa y Taxonomía de Ramas
+## 1. Filosofía de Operación: Doble Modalidad
+
+Para garantizar un balance óptimo entre agilidad analítica y rigurosidad técnica, todo requerimiento del usuario se clasifica inmediatamente en uno de dos modos operativos:
+
+```
+                            [ REQUERIMIENTO DEL USUARIO ]
+                                         │
+                 ┌───────────────────────┴───────────────────────┐
+                 ▼                                               ▼
+     [ ¿Es consulta o propuesta? ]                 [ ¿Es orden directa de acción? ]
+     ("analiza", "quiero ver", "¿podríamos?")      ("hazlo", "implementa", "corrige")
+                 │                                               │
+                 ▼                                               ▼
+    ┌───────────────────────────┐                 ┌───────────────────────────┐
+    │     MODO CONSULTIVO       │                 │       FLUJO GRANDE        │
+    │   (Proposal & Preview)    │                 │ (Full Engineering Flow)   │
+    │                           │                 │                           │
+    │ • Análisis técnico        │                 │ 1. Planificar             │
+    │ • Mockups y alternativas  │                 │ 2. Ramificar (Git Flow)   │
+    │ • Impacto y riesgos       │                 │ 3. Desarrollo cíclico     │
+    │ • Cero commits/ramas      │                 │ 4. Testear (100% Pass)    │
+    │ • Espera aprobación       │                 │ 5. Sincronizar Context .md│
+    └───────────────────────────┘                 │ 6. Merge --no-ff & Prune  │
+                 │                                │ 7. Reporte ejecutivo      │
+                 └──────────── [ Usuario dice: "Hazlo" ] ─────────┘
+```
+
+---
+
+## 2. Modo 1: Propuesta y Evaluación Previa (Proposal & Preview Mode)
+
+### 2.1. Criterios de Activación
+Se activa cuando el usuario formula solicitudes como:
+- *"Analiza si es viable agregar X"*
+- *"Quiero ver primero cómo se resolvería Y antes de aplicarlo"*
+- *"¿Podríamos mejorar el diseño de Z? Muéstrame opciones"*
+- *"Evalúa el impacto de cambiar tal comportamiento"*
+
+### 2.2. Protocolo de Ejecución del Modo Consultivo
+En esta modalidad, **está estrictamente prohibido modificar archivos productivos, crear ramas en Git o realizar commits**. El agente debe:
+
+1. **Investigar y Diagnosticar:**
+   - Inspeccionar el código actual (`app.py`, `md_engine.py`, `ui/index.html`, etc.) sin modificarlo.
+   - Identificar dependencias internas, riesgos de regresión y puntos de entrada.
+2. **Construir la Propuesta de Solución:**
+   - **Explicación Arquitectónica:** Cómo encaja con el principio *Zero-Bloatware* (solo biblioteca estándar de Python y Vanilla JS/CSS).
+   - **Prototipo / Mockup Visual o de Código:** Snippets de código propuestos, diseño de endpoints o interfaces de usuario simuladas.
+   - **Análisis de Pros, Contras y Alternativas:** Comparar al menos dos enfoques técnicos viables.
+   - **Estimación de Impacto en Pruebas:** Qué pruebas existentes se verían afectadas y qué nuevas pruebas unitarias se requerirían.
+3. **Cierre Consultivo:**
+   - Solicitar formalmente confirmación al usuario:  
+     *«He formulado la propuesta técnica. Si estás de acuerdo, confírmame para iniciar el **Flujo Grande de Ingeniería** e implementarlo.»*
+
+---
+
+## 3. Modo 2: Flujo Integral de Ejecución ("El Flujo Grande")
+
+### 3.1. Criterios de Activación
+Se activa cuando:
+- El usuario da una instrucción explícita de acción: *"hazlo"*, *"arréglalo"*, *"implementa X"*, *"corrige el error Y"*.
+- El usuario aprueba una propuesta previa presentada en el Modo 1 (*"me gusta la opción A, adelante"*).
+
+### 3.2. Las 7 Fases del Flujo Grande
 
 ```mermaid
-gitGraph
-   commit id: "v1.0.0 (Init)" tag: "v1.0.0"
-   branch develop
-   checkout develop
-   commit id: "develop base"
-   branch feature/recent-history
-   checkout feature/recent-history
-   commit id: "feat: detect existing html files"
-   commit id: "test: add history reload tests"
-   checkout develop
-   merge feature/recent-history id: "merge: feature/recent-history"
-   branch release/v1.1.0
-   checkout release/v1.1.0
-   commit id: "chore: bump version v1.1.0"
-   checkout master
-   merge release/v1.1.0 id: "merge: release/v1.1.0" tag: "v1.1.0"
-   checkout develop
-   merge release/v1.1.0 id: "merge: sync back release"
+sequenceDiagram
+    autonumber
+    actor Usuario
+    participant Agente
+    participant Git as Git Repo
+    participant Code as Base de Código
+    participant Tests as Test Runner (run_tests.py)
+    participant Context as Archivos de Contexto (.md)
+
+    Usuario->>Agente: Instrucción directa: "Haz la mejora X"
+    
+    rect rgb(20, 25, 35)
+        Note over Agente: Fase 1: Planificación
+        Agente->>Agente: Elabora plan estructurado y estrategia TDD
+    end
+
+    rect rgb(25, 35, 25)
+        Note over Agente, Git: Fase 2: Ramificación Git Flow
+        Agente->>Git: git checkout develop
+        Agente->>Git: git checkout -b feature/nombre-mejora
+    end
+
+    rect rgb(35, 30, 20)
+        Note over Agente, Code: Fase 3: Desarrollo Cíclico
+        Agente->>Code: Implementación modular limpia (Zero-Bloatware)
+    end
+
+    rect rgb(35, 20, 35)
+        Note over Agente, Tests: Fase 4: Testing Exhaustivo
+        Agente->>Tests: Añade pruebas unitarias en tests/
+        Agente->>Tests: Ejecuta run_tests.py (79+ pruebas)
+        Tests-->>Agente: 100% Exitoso (Verde)
+    end
+
+    rect rgb(20, 35, 35)
+        Note over Agente, Context: Fase 5: Actualización de Reglas y Contexto
+        Agente->>Context: Plasma nuevas reglas en AGENTS.md, rules/, etc.
+    end
+
+    rect rgb(30, 25, 40)
+        Note over Agente, Git: Fase 6: Commits Atómicos y Merge
+        Agente->>Git: git add & git commit (Conventional Commits)
+        Agente->>Git: git checkout develop
+        Agente->>Git: git merge --no-ff feature/...
+        Agente->>Tests: Revalida suite completa en develop
+        Agente->>Git: git branch -d feature/...
+    end
+
+    Agente-->>Usuario: Fase 7: Reporte ejecutivo de entrega con evidencias
 ```
-
-### 2.1. Ramas Principales (Infinitas)
-
-| Rama | Propósito | Reglas de Protección |
-| :--- | :--- | :--- |
-| **`master`** | Código listo para despliegue / distribución al usuario final. | Sólo recibe merges desde ramas `release/*` o `hotfix/*`. Cada merge genera un Tag SemVer (`vX.Y.Z`). |
-| **`develop`** | Rama principal de integración continua y desarrollo activo. | Recibe merges de `feature/*`, `bugfix/*`, `release/*` y `hotfix/*`. Debe mantener el 100% de tests en verde. |
-
-### 2.2. Ramas de Soporte (Temporales)
-
-| Prefijo de Rama | Origen (Branch From) | Destino (Merge To) | Convención de Nombres | Ejemplo |
-| :--- | :--- | :--- | :--- | :--- |
-| **`feature/`** | `develop` | `develop` | `feature/<kebab-case-descriptivo>` | `feature/auto-reload-history` |
-| **`bugfix/`** | `develop` | `develop` | `bugfix/<kebab-case-descriptivo>` | `bugfix/fix-window-restore-edge` |
-| **`release/`** | `develop` | `master` y `develop` | `release/v<MAJOR>.<MINOR>.<PATCH>` | `release/v1.1.0` |
-| **`hotfix/`** | `master` | `master` y `develop` | `hotfix/v<MAJOR>.<MINOR>.<PATCH>` | `hotfix/v1.0.1` |
-| **`test/`** | `develop` | `develop` | `test/<kebab-case-descriptivo>` | `test/modular-test-suite` |
 
 ---
 
-## 3. Especificación de Conventional Commits
+### Fase 1: Planificación y Especificación Arquitectónica (Plan)
+- **Desglose de Requisitos:** Formular el alcance exacto de la tarea.
+- **Análisis de Impacto:** Identificar archivos a modificar (`app.py`, `md_engine.py`, `ui/`, `tests/`).
+- **Diseño de Contratos:** Definir firmas de funciones, endpoints REST o eventos del DOM.
+- **Estrategia TDD:** Definir los casos de prueba unitarios antes de codificar.
 
-Los mensajes de commit deben seguir estrictamente el siguiente formato:
+### Fase 2: Ramificación Aislada en Git Flow (Branch)
+- Comprobar que el espacio de trabajo esté limpio (`git status`).
+- Posicionarse en la rama base de integración: `git checkout develop`.
+- Crear la rama de trabajo siguiendo la taxonomía:
+  - Nueva funcionalidad: `git checkout -b feature/<nombre-descriptivo>`
+  - Corrección de bugs: `git checkout -b bugfix/<nombre-descriptivo>`
+  - Pruebas o testing: `git checkout -b test/<nombre-descriptivo>`
 
-```
-<tipo>(<alcance opcional>): <descripción concisa en imperativo y minúsculas>
+### Fase 3: Desarrollo Cíclico e Incremental (Code)
+- Desarrollar en iteraciones modulares y pequeñas.
+- Respetar los estándares del proyecto:
+  - **Zero-Bloatware:** Prohibido instalar paquetes externos en `pip` o librerías de Node.js.
+  - **Compatibilidad con `pythonw.exe`:** Proteger accesos a `sys.stdout`/`sys.stderr`.
+  - **Apple OLED Dark Design:** Superficies oscuras, contrastes accesibles y animaciones con física de resorte.
 
-[cuerpo explicativo opcional: detalles del qué, el por qué y consideraciones]
+### Fase 4: Aseguramiento de Calidad y Pruebas Unitarias (Test)
+- Diseñar e implementar pruebas unitarias que cubran los casos de éxito, casos límite y entradas inválidas en el módulo respectivo dentro de `tests/`.
+- Ejecutar la suite integral de verificación:
+  ```powershell
+  python run_tests.py
+  ```
+- Ejecutar la suite de humo del servidor:
+  ```powershell
+  python verify_app.py
+  ```
+- **Regla Inquebrantable:** El 100% de las pruebas debe pasar (79+ tests en verde). Si una sola prueba falla, se prohíbe avanzar al commit hasta resolverla.
 
-[referencias opcionales: Closes #123, Fixes #45]
-```
-
-### 3.1. Tipos Permitidos
-
-- **`feat`**: Nueva funcionalidad para el usuario o el motor (ej. `feat(server): auto-recargar documentos preexistentes en historial`).
-- **`fix`**: Corrección de un defecto o error de lógica (ej. `fix(engine): corregir alineación de tablas markdown con celdas vacías`).
-- **`docs`**: Cambios exclusivos en documentación (`README.md`, `AGENTS.md`, `GIT_FLOW.md`).
-- **`style`**: Ajustes estéticos de CSS/UI o formato de código sin alterar lógica.
-- **`refactor`**: Reestructuración de código sin agregar funcionalidad ni corregir bugs.
-- **`perf`**: Optimizaciones de rendimiento de compilación o respuesta de API.
-- **`test`**: Creación o refactorización de pruebas unitarias o de integración.
-- **`chore`**: Tareas de mantenimiento, actualización de scripts de instalación o `.gitignore`.
-- **`merge`**: Registro explícito de integración de ramas (`merge: feature/xyz into develop`).
-
-### 3.2. Alcances Comunes en el Proyecto (`scope`)
-
-- `(engine)`: Motor de compilación `md_engine.py`.
-- `(server)`: Servidor HTTP y API local `app.py`.
-- `(ui)`: Interfaz gráfica SPA `ui/index.html`.
-- `(tests)`: Suite de pruebas `tests/` o runners.
-- `(shortcuts)`: Scripts de acceso directo y empaquetado nativo Windows.
-
----
-
-## 4. Protocolo Operativo Paso a Paso para Agentes y Desarrolladores
-
-Cada requerimiento debe ejecutarse siguiendo este ciclo riguroso de 7 pasos:
-
-```
-[1. Inspeccionar & Sincronizar]
-            ↓
-  [2. Crear Rama Feature/Bugfix]
-            ↓
-  [3. Implementación & Pruebas TDD]
-            ↓
-  [4. Validación Integral (100% Pass)]
-            ↓
-  [5. Commits Atómicos Semánticos]
-            ↓
-  [6. Integración (Merge --no-ff a develop)]
-            ↓
-  [7. Limpieza & Documentación]
-```
-
-### Paso 1: Inspección y Sincronización Inicial
-Antes de escribir cualquier línea de código:
-```powershell
-# 1. Comprobar estado limpio del directorio de trabajo
-git status
-
-# 2. Situarse en develop
-git checkout develop
-
-# 3. Verificar que no haya commits pendientes
-git log -n 3 --oneline
-```
-
-### Paso 2: Creación de la Rama de Trabajo
-```powershell
-# Para una nueva característica:
-git checkout -b feature/nombre-de-la-funcionalidad
-
-# O para una corrección de bug:
-git checkout -b bugfix/nombre-del-bug
-```
-
-### Paso 3: Implementación y Pruebas
-1. Escribir código limpio respetando la arquitectura Zero-Bloatware de Python nativo.
-2. Añadir o actualizar las pruebas unitarias correspondientes en `tests/`.
-3. Nunca añadir al stage archivos de depuración como `debug_log.txt`, carpetas temporales `tmp/` o caches `__pycache__`.
-
-### Paso 4: Validación y Control de Calidad Obligatorio
-Antes de hacer commit, **TODAS las suites de pruebas deben ejecutarse y reportar 100% de éxito**:
-```powershell
-# Ejecutar suite exhaustiva modular (79+ pruebas)
-python run_tests.py
-
-# Ejecutar suite de pruebas de humo y ciclo de vida (9 checks)
-python verify_app.py
-```
+### Fase 5: Sincronización y Evolución de Archivos de Contexto (Context & Rules Evolution)
 > [!IMPORTANT]
-> Si una sola prueba falla, queda terminantemente prohibido hacer commit o merge. Se debe depurar y corregir hasta alcanzar el 100% de éxito.
+> **El Conocimiento del Proyecto es un Ente Vivo:** Si la implementación introdujo una nueva decisión arquitectónica, una regla de negocio, un endpoint nuevo o una corrección de seguridad:
+- Se debe plasmar inmediatamente en los archivos de contexto:
+  - `.agents/AGENTS.md`: Arquitectura, endpoints y especificación técnica.
+  - `.agents/rules/*.md`: Reglas activas para futuros agentes.
+  - `README.md`: Documentación para el usuario humano.
+  - `GIT_FLOW.md`: Si el proceso de ingeniería evolucionó.
 
-### Paso 5: Commits Atómicos
-Añadir únicamente los archivos involucrados en el cambio:
-```powershell
-git add app.py ui/index.html tests/test_config_and_history.py
-git commit -m "feat(server): auto-recargar historial con documentos existentes al abrir app"
-```
+### Fase 6: Commits Atómicos e Integración Git Flow (Commit & Merge)
+- Realizar commits atómicos con **Conventional Commits**:
+  ```powershell
+  git add <archivos-específicos>
+  git commit -m "<tipo>(<alcance>): <descripción concisa>"
+  ```
+- Integrar a `develop`:
+  ```powershell
+  git checkout develop
+  git merge --no-ff feature/<nombre-rama> -m "merge: feature/<nombre-rama> into develop"
+  ```
+- Re-ejecutar `python run_tests.py` sobre `develop` para certificar que el merge no causó regresiones.
+- Eliminar la rama de trabajo local integrada:
+  ```powershell
+  git branch -d feature/<nombre-rama>
+  ```
 
-### Paso 6: Integración Segura a `develop`
-```powershell
-# 1. Volver a la rama de integración
-git checkout develop
-
-# 2. Mergear preservando el historial completo mediante --no-ff
-git merge --no-ff feature/nombre-de-la-funcionalidad -m "merge: feature/nombre-de-la-funcionalidad into develop"
-
-# 3. Validar nuevamente la suite de pruebas sobre develop integrado
-python run_tests.py
-```
-
-### Paso 7: Limpieza de la Rama de Trabajo
-```powershell
-# Eliminar la rama local una vez integrada exitosamente
-git branch -d feature/nombre-de-la-funcionalidad
-```
-
----
-
-## 5. Procedimiento de Publicación de Release (`release/*`)
-
-Cuando se acumula un conjunto significativo de funcionalidades en `develop` y se desea congelar una versión:
-
-1. Crear rama `release/vX.Y.Z` a partir de `develop`:
-   ```powershell
-   git checkout develop
-   git checkout -b release/v1.1.0
-   ```
-2. Realizar ajustes menores (actualizar versiones en `README.md`, `AGENTS.md` y notas de versión).
-3. Ejecutar suite completa `python run_tests.py`.
-4. Mergear a `master` y colocar Tag de versión:
-   ```powershell
-   git checkout master
-   git merge --no-ff release/v1.1.0 -m "merge: release/v1.1.0 into master"
-   git tag -a v1.1.0 -m "Release v1.1.0: Auto-recarga de historial y catálogo interactivo"
-   ```
-5. Mergear los cambios de release de vuelta a `develop`:
-   ```powershell
-   git checkout develop
-   git merge --no-ff release/v1.1.0 -m "merge: sync back release/v1.1.0 into develop"
-   ```
-6. Eliminar la rama `release/v1.1.0`:
-   ```powershell
-   git branch -d release/v1.1.0
-   ```
+### Fase 7: Cierre y Demostración Ejecutiva (Report)
+- Entregar al usuario un informe conciso que incluya:
+  - Qué se cambió y por qué.
+  - Enlaces clicables a los archivos modificados ([archivo](file:///ruta)).
+  - Resultado de las pruebas automatizadas (número de tests pasados).
+  - Guía rápida para verificar el cambio en la aplicación real.
 
 ---
 
-## 6. Procedimiento para Hotfixes Críticos en Producción (`hotfix/*`)
+## 4. Taxonomía de Ramas
 
-Si se detecta un fallo crítico en la versión de producción (`master`):
+| Rama | Tipo | Origen | Merge Hacia | Ejemplo |
+| :--- | :---: | :---: | :---: | :--- |
+| **`master`** | Permanente | N/A | N/A | Rama de producción estable. Tags: `v1.0.0` |
+| **`develop`** | Permanente | `master` | `master` (vía release) | Rama de integración continua |
+| **`feature/*`** | Temporal | `develop` | `develop` | `feature/auto-reload-history` |
+| **`bugfix/*`** | Temporal | `develop` | `develop` | `bugfix/fix-ghost-doc-cleanup` |
+| **`release/*`** | Temporal | `develop` | `master` y `develop` | `release/v1.1.0` |
+| **`hotfix/*`** | Temporal | `master` | `master` y `develop` | `hotfix/v1.0.1` |
+| **`test/*`** | Temporal | `develop` | `develop` | `test/add-api-stress-tests` |
+| **`docs/*`** | Temporal | `develop` | `develop` | `docs/update-architecture-manual` |
 
-1. Crear la rama de hotfix desde `master`:
+---
+
+## 5. Formato de Conventional Commits
+
+```
+<tipo>(<alcance>): <descripción en imperativo y minúsculas>
+```
+
+### Tipos Válidos:
+- **`feat`**: Nueva funcionalidad para la app o el motor.
+- **`fix`**: Corrección de un fallo o error de lógica.
+- **`docs`**: Modificaciones exclusivas en documentación.
+- **`style`**: Ajustes estéticos de CSS/UI o maquetación.
+- **`refactor`**: Reorganización de código sin alterar su comportamiento externo.
+- **`perf`**: Mejoras en tiempo de respuesta o uso de memoria.
+- **`test`**: Creación o actualización de suites de prueba.
+- **`chore`**: Tareas de configuración, scripts o tooling.
+- **`merge`**: Registro explícito de integración entre ramas.
+
+### Alcances Recomendados:
+- `(server)`: Lógica de `app.py` o endpoints HTTP.
+- `(engine)`: Motor de compilación `md_engine.py`.
+- `(ui)`: Interfaz SPA `ui/index.html`.
+- `(config)`: Persistencia y carga de `config.json`.
+- `(tests)`: Suite de pruebas en `tests/`.
+- `(docs)`: Manuales y especificaciones.
+
+---
+
+## 6. Procedimiento para Releases y Hotfixes
+
+### 6.1. Ciclo de Release (`release/vX.Y.Z`)
+1. Crear rama `release/vX.Y.Z` desde `develop`.
+2. Incrementar versión y actualizar changelog en `README.md` y `AGENTS.md`.
+3. Ejecutar suite completa `python run_tests.py` y `python verify_app.py`.
+4. Mergear a `master`:
    ```powershell
    git checkout master
-   git checkout -b hotfix/v1.0.1
+   git merge --no-ff release/vX.Y.Z -m "merge: release/vX.Y.Z into master"
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
    ```
-2. Aplicar la corrección mínima y verificar con `run_tests.py`.
-3. Mergear a `master`, etiquetar y propagar inmediatamente a `develop`:
+5. Mergear a `develop`:
+   ```powershell
+   git checkout develop
+   git merge --no-ff release/vX.Y.Z -m "merge: sync release/vX.Y.Z into develop"
+   git branch -d release/vX.Y.Z
+   ```
+
+### 6.2. Ciclo de Hotfix (`hotfix/vX.Y.Z`)
+1. Nace de `master`: `git checkout -b hotfix/vX.Y.Z master`.
+2. Aplica parche de seguridad o corrección crítica.
+3. Se valida con `python run_tests.py`.
+4. Se mergea a `master` con tag `vX.Y.Z` y se propaga a `develop`:
    ```powershell
    git checkout master
-   git merge --no-ff hotfix/v1.0.1 -m "merge: hotfix/v1.0.1 into master"
-   git tag -a v1.0.1 -m "Hotfix v1.0.1: Parche urgente de seguridad"
+   git merge --no-ff hotfix/vX.Y.Z -m "merge: hotfix/vX.Y.Z into master"
+   git tag -a vX.Y.Z -m "Hotfix vX.Y.Z"
 
    git checkout develop
-   git merge --no-ff hotfix/v1.0.1 -m "merge: propagate hotfix/v1.0.1 into develop"
-
-   git branch -d hotfix/v1.0.1
+   git merge --no-ff hotfix/vX.Y.Z -m "merge: propagate hotfix/vX.Y.Z into develop"
+   git branch -d hotfix/vX.Y.Z
    ```
 
 ---
 
-## 7. Reglas de Protección y Buenas Prácticas
+## 7. Catálogo de Reglas y Mejora Continua
 
-- **Nunca usar `git push --force`** ni reescribir la historia pública de commits compartidos.
-- **Mantener `.gitignore` al día:** Garantizar que `config.json` local (si contiene rutas privadas), `debug_log.txt`, `.tmp` y `__pycache__` no se comiteen accidentalmente si no corresponden al baseline.
-- **Trazabilidad en Mensajes de Merge:** Los merges siempre deben usar `--no-ff` y un mensaje estándar descriptivo: `"merge: <rama-origen> into <rama-destino>"`.
-- **Evolución del Protocolo:** Si se identifica un nuevo escenario o regla de ingeniería, este documento debe actualizarse mediante una rama `docs/improve-git-flow` o en la rama de trabajo correspondiente.
+Este manual es un instrumento dinámico. Cada vez que el equipo o los agentes identifiquen:
+1. Una nueva categoría de pruebas o un caso límite común,
+2. Un nuevo patrón de integración de accesos directos o empaquetado,
+3. Una refinación en los pasos del ciclo de desarrollo,
+
+**Se debe actualizar este archivo de contexto** en la Fase 5 del Flujo Grande para que la inteligencia colectiva del repositorio crezca permanentemente.
