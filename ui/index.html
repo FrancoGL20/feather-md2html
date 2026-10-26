@@ -773,7 +773,7 @@
       .dir-actions {
         width: 100%;
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
         gap: 0.4rem;
       }
       .dir-actions .btn-compact {
@@ -879,6 +879,9 @@
           </button>
           <button class="btn-compact" onclick="openCurrentFolder()" title="Abrir carpeta en el Explorador de Windows">
             ↗️ Abrir en Explorador
+          </button>
+          <button class="btn-compact" onclick="openLogs()" title="Ver archivo de registro de depuración (debug_log.txt)">
+            📋 Ver Logs
           </button>
         </div>
       </div>
@@ -1040,6 +1043,7 @@ graph TD
         } catch (err) {
           clearTimeout(timeoutId);
           lastErr = err;
+          console.warn(`[App] Intento ${i + 1}/${retries} para ${url} falló:`, err);
           if (i < retries - 1) {
             await new Promise(r => setTimeout(r, delayMs));
           }
@@ -1173,6 +1177,12 @@ graph TD
       fetch('/api/open-folder', { method: 'POST' });
     }
 
+    // Open Debug Logs in Notepad / System Viewer
+    function openLogs() {
+      fetch('/api/open-logs', { method: 'POST' }).catch(() => {});
+      showToast('Abriendo debug_log.txt...');
+    }
+
     // Browse File
     async function browseFile() {
       try {
@@ -1286,11 +1296,12 @@ graph TD
       });
 
       try {
+        console.log('[App] Enviando Markdown al motor para conversión...');
         const res = await fetchWithRetry('/api/convert', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
-        });
+        }, 2, 350, 15000);
 
         const data = await res.json();
         if (data.success) {
@@ -1305,7 +1316,11 @@ graph TD
         }
       } catch (err) {
         console.error('Error al convertir:', err);
-        showToast('Error de comunicación con el motor');
+        if (err && err.name === 'AbortError') {
+          showToast('⚠️ Tiempo de espera agotado con el motor (Timeout). Revisa Ver Logs');
+        } else {
+          showToast('⚠️ Error de comunicación con el motor. Revisa Ver Logs');
+        }
       } finally {
         [pasteBtn, convertBtn].forEach(b => {
           if (b) {
