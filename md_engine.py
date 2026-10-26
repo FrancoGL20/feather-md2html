@@ -1246,6 +1246,7 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
     i = 0
     n = len(body_lines)
     while i < n:
+        loop_start_i = i
         line = body_lines[i]
         stripped = line.strip()
         if not stripped:
@@ -1342,7 +1343,7 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
             continue
 
         # Headings estándar con #
-        heading_match = re.match(r'^(#{1,6})\s+(.*)$', line)
+        heading_match = re.match(r'^\s*(#{1,6})\s+(.*)$', line)
         if heading_match:
             level = len(heading_match.group(1))
             heading_raw = heading_match.group(2).strip()
@@ -1357,15 +1358,15 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
             continue
 
         # Alerts [!NOTE], [!TIP], etc.
-        alert_match = re.match(r'^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)$', line, re.IGNORECASE)
+        alert_match = re.match(r'^\s*>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)$', line, re.IGNORECASE)
         if alert_match:
             alert_type = alert_match.group(1).lower()
             alert_header_text = alert_match.group(2).strip() or alert_type.upper()
             alert_body_lines = []
             i += 1
-            while i < n and (body_lines[i].startswith('>') or not body_lines[i].strip()):
-                if body_lines[i].startswith('>'):
-                    sub_line = re.sub(r'^>\s?', '', body_lines[i])
+            while i < n and (body_lines[i].strip().startswith('>') or not body_lines[i].strip()):
+                if body_lines[i].strip().startswith('>'):
+                    sub_line = re.sub(r'^\s*>\s?', '', body_lines[i])
                     alert_body_lines.append(sub_line)
                 i += 1
             alert_icon = ALERT_ICONS.get(alert_type, ALERT_ICONS['note'])
@@ -1379,61 +1380,83 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
             continue
 
         # Standard Blockquote
-        if line.startswith('>'):
+        if stripped.startswith('>'):
             bq_lines = []
-            while i < n and (body_lines[i].startswith('>') or not body_lines[i].strip()):
-                if body_lines[i].startswith('>'):
-                    bq_lines.append(re.sub(r'^>\s?', '', body_lines[i]))
+            while i < n and (body_lines[i].strip().startswith('>') or not body_lines[i].strip()):
+                if body_lines[i].strip().startswith('>'):
+                    bq_lines.append(re.sub(r'^\s*>\s?', '', body_lines[i]))
                 i += 1
             bq_content = "<br>".join([inline_formatting(l) for l in bq_lines if l.strip()])
             html_blocks.append(f'<blockquote><p>{bq_content}</p></blockquote>')
             continue
 
-        # Tables
-        if '|' in line and i + 1 < n and re.match(r'^\s*\|?\s*:?---', body_lines[i + 1]):
+        # Tables (estándar con fila :--- o tablas tabulares continuas con |...| como Gherkin)
+        has_table_syntax = (
+            ('|' in stripped and i + 1 < n and re.match(r'^\s*\|?\s*:?---', body_lines[i + 1])) or
+            (stripped.startswith('|') and stripped.endswith('|') and i + 1 < n and body_lines[i + 1].strip().startswith('|') and body_lines[i + 1].strip().endswith('|'))
+        )
+        if has_table_syntax:
             table_lines = [line]
-            i += 1
-            while i < n and '|' in body_lines[i]:
-                table_lines.append(body_lines[i])
-                i += 1
-            headers = [c.strip() for c in table_lines[0].strip().strip('|').split('|')]
-            align_cells = [c.strip() for c in table_lines[1].strip().strip('|').split('|')]
-            alignments = []
-            for a in align_cells:
-                if a.startswith(':') and a.endswith(':'):
-                    alignments.append('style="text-align: center;"')
-                elif a.endswith(':'):
-                    alignments.append('style="text-align: right;"')
-                elif a.startswith(':'):
-                    alignments.append('style="text-align: left;"')
+            peek = i + 1
+            has_separator = re.match(r'^\s*\|?\s*:?---', body_lines[peek]) is not None
+            while peek < n:
+                nxt_str = body_lines[peek].strip()
+                if has_separator:
+                    if '|' in nxt_str:
+                        table_lines.append(body_lines[peek])
+                        peek += 1
+                    else:
+                        break
                 else:
-                    alignments.append('')
+                    if nxt_str.startswith('|') and nxt_str.endswith('|'):
+                        table_lines.append(body_lines[peek])
+                        peek += 1
+                    else:
+                        break
 
-            rows = []
-            for r_line in table_lines[2:]:
-                cells = [c.strip() for c in r_line.strip().strip('|').split('|')]
-                rows.append(cells)
+            if len(table_lines) >= 2:
+                if has_separator:
+                    headers = [c.strip() for c in table_lines[0].strip().strip('|').split('|')]
+                    align_cells = [c.strip() for c in table_lines[1].strip().strip('|').split('|')]
+                    alignments = []
+                    for a in align_cells:
+                        if a.startswith(':') and a.endswith(':'):
+                            alignments.append('style="text-align: center;"')
+                        elif a.endswith(':'):
+                            alignments.append('style="text-align: right;"')
+                        elif a.startswith(':'):
+                            alignments.append('style="text-align: left;"')
+                        else:
+                            alignments.append('')
+                    data_rows = table_lines[2:]
+                else:
+                    headers = [c.strip() for c in table_lines[0].strip().strip('|').split('|')]
+                    alignments = ['' for _ in headers]
+                    data_rows = table_lines[1:]
 
-            th_html = "".join([
-                f"<th {alignments[col] if col < len(alignments) else ''}>{inline_formatting(h)}</th>"
-                for col, h in enumerate(headers)
-            ])
-            tr_html = []
-            for r in rows:
-                tds = "".join([
-                    f"<td {alignments[col] if col < len(alignments) else ''}>{inline_formatting(c)}</td>"
-                    for col, c in enumerate(r)
+                th_html = "".join([
+                    f"<th {alignments[col] if col < len(alignments) else ''}>{inline_formatting(h)}</th>"
+                    for col, h in enumerate(headers)
                 ])
-                tr_html.append(f"<tr>{tds}</tr>")
-            html_blocks.append(
-                f'<div class="table-container">\n'
-                f'  <table>\n'
-                f'    <thead><tr>{th_html}</tr></thead>\n'
-                f'    <tbody>{"".join(tr_html)}</tbody>\n'
-                f'  </table>\n'
-                f'</div>'
-            )
-            continue
+                tr_html = []
+                for r_line in data_rows:
+                    cells = [c.strip() for c in r_line.strip().strip('|').split('|')]
+                    tds = "".join([
+                        f"<td {alignments[col] if col < len(alignments) else ''}>{inline_formatting(c)}</td>"
+                        for col, c in enumerate(cells)
+                    ])
+                    tr_html.append(f"<tr>{tds}</tr>")
+
+                html_blocks.append(
+                    f'<div class="table-container">\n'
+                    f'  <table>\n'
+                    f'    <thead><tr>{th_html}</tr></thead>\n'
+                    f'    <tbody>{"".join(tr_html)}</tbody>\n'
+                    f'  </table>\n'
+                    f'</div>'
+                )
+                i = peek
+                continue
 
         # Horizontal Rule (---, ***, ___)
         if re.match(r'^(?:[-*_]\s*){3,}$', stripped):
@@ -1444,23 +1467,38 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
         # Lists (Ordered, Unordered, Task, Nested Hierarchies)
         if is_list_marker(line):
             raw_items, next_i = parse_list_items(body_lines, i)
+            if next_i <= i:
+                next_i = i + 1
             roots = build_tree(raw_items)
             for r in roots:
                 html_blocks.append(render_list_node(r))
             i = next_i
             continue
 
-        # Paragraph
+        # Paragraph (consume líneas hasta encontrar un nuevo bloque o línea en blanco)
         para_lines = []
-        while (i < n and body_lines[i].strip() 
-               and not body_lines[i].strip().startswith(('#', '```', '>', '|'))
+        while (i < n and body_lines[i].strip()
+               and not re.match(r'^\s*#{1,6}\s+', body_lines[i])
+               and not body_lines[i].strip().startswith('```')
+               and not body_lines[i].strip().startswith('>')
+               and not (
+                   ('|' in body_lines[i] and i + 1 < n and re.match(r'^\s*\|?\s*:?---', body_lines[i + 1])) or
+                   (body_lines[i].strip().startswith('|') and body_lines[i].strip().endswith('|') and i + 1 < n and body_lines[i + 1].strip().startswith('|') and body_lines[i + 1].strip().endswith('|'))
+               )
                and not re.match(r'^(?:[-*_]\s*){3,}$', body_lines[i].strip())
-               and not is_list_marker(body_lines[i])):
+               and not is_list_marker(body_lines[i])
+               and not (i + 1 < n and re.match(r'^[=\-]{3,}\s*$', body_lines[i + 1].strip()))):
             para_lines.append(body_lines[i].strip())
             i += 1
         if para_lines:
             para_text = " ".join(para_lines)
             html_blocks.append(f'<p>{inline_formatting(para_text)}</p>')
+
+        # Garantía infalible contra bucles infinitos: Si ninguna regla avanzó el cursor,
+        # forzar el avance de al menos 1 línea tratándola como párrafo seguro
+        if i == loop_start_i:
+            html_blocks.append(f'<p>{inline_formatting(stripped)}</p>')
+            i += 1
 
     # Table of contents if 3+ items
     toc_html = ""
