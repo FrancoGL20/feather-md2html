@@ -17,7 +17,7 @@ import subprocess
 import webbrowser
 from datetime import datetime
 from pathlib import Path
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 # Configure stdout for UTF-8 on Windows (safe for pythonw where stdout is None)
@@ -39,9 +39,88 @@ CONFIG_TEMPLATE_FILE = APP_DIR / "config.template.json"
 
 DEFAULT_ROOT_DIR = Path.home() / "Downloads" / "Markdown_HTML_Library"
 
-# Estado global
+# Estado global de supervisión y ciclo de vida
 last_heartbeat = time.time()
 server_instance = None
+client_connected = False
+tracked_app_hwnds = set()
+shutdown_scheduled_time = None
+initial_window_detected = False
+
+def schedule_shutdown(delay: float = 4.0):
+    """Programa un apagado diferido para permitir que reinicios de página o eventos cancelen el cierre."""
+    global shutdown_scheduled_time
+    shutdown_scheduled_time = time.time() + delay
+    log_debug(f"Apagado programado en {delay}s (timestamp objetivo: {shutdown_scheduled_time})")
+
+def cancel_scheduled_shutdown():
+    """Cancela cualquier apagado programado cuando se detecta actividad legítima o ventana viva."""
+    global shutdown_scheduled_time
+    if shutdown_scheduled_time is not None:
+        log_debug("Apagado programado CANCELADO por actividad de cliente o presencia de ventana.")
+        shutdown_scheduled_time = None
+
+def find_app_hwnds() -> list:
+    """Busca en el sistema operativo Windows las ventanas nativas que pertenecen a Markdown to HTML."""
+    results = []
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+
+        def enum_cb(hwnd, lparam):
+            if user32.IsWindow(hwnd):
+                length = user32.GetWindowTextLengthW(hwnd)
+                if length > 0:
+                    buff = ctypes.create_unicode_buffer(length + 1)
+                    user32.GetWindowTextW(hwnd, buff, length + 1)
+                    val = buff.value.strip()
+                    if "Markdown to HTML" in val:
+                        # Excluir editores o navegadores genéricos con el nombre en ruta/pestaña
+                        if "Visual Studio Code" not in val and "Sublime" not in val:
+                            results.append(hwnd)
+            return True
+
+        user32.EnumWindows(WNDENUMPROC(enum_cb), 0)
+    except Exception as e:
+        log_debug(f"Aviso en find_app_hwnds: {e}")
+    return results
+
+def is_app_window_alive() -> bool:
+    """
+    Verifica si la ventana nativa de la aplicación sigue existiendo en el sistema operativo.
+    Retorna:
+      True  -> La ventana está confirmada como viva y abierta (activa, minimizada o en segundo plano).
+      False -> La ventana existía previamente y el usuario la ha cerrado (HWND destruido).
+      None  -> No se ha podido vincular a una ventana nativa de Windows (modo navegador externo o sin Win32).
+    """
+    global tracked_app_hwnds, initial_window_detected
+    try:
+        import ctypes
+        user32 = ctypes.windll.user32
+
+        # 1. Si ya teníamos HWNDs rastreados, verificar si al menos uno sigue siendo una ventana válida
+        if tracked_app_hwnds:
+            alive = {h for h in tracked_app_hwnds if user32.IsWindow(h)}
+            tracked_app_hwnds = alive
+            if tracked_app_hwnds:
+                initial_window_detected = True
+                return True
+
+        # 2. Si no hay ventanas rastreadas o se perdieron, intentar descubrirlas activamente
+        found = find_app_hwnds()
+        if found:
+            tracked_app_hwnds.update(found)
+            initial_window_detected = True
+            return True
+
+        # 3. Si se había detectado una ventana previamente y ahora no existe ninguna
+        if initial_window_detected:
+            return False
+        return None
+    except Exception:
+        return None
 
 def extract_title_from_html(file_path: Path) -> str:
     """Extrae el título de un documento HTML buscando la etiqueta <title> o recurre al stem."""
@@ -231,6 +310,7 @@ class AppRequestHandler(BaseHTTPRequestHandler):
         global last_heartbeat, client_connected
         client_connected = True
         last_heartbeat = time.time()
+        cancel_scheduled_shutdown()
         parsed_url = urlparse(self.path)
         path = parsed_url.path
 
@@ -272,6 +352,7 @@ class AppRequestHandler(BaseHTTPRequestHandler):
         global last_heartbeat, client_connected
         client_connected = True
         last_heartbeat = time.time()
+        cancel_scheduled_shutdown()
         parsed_url = urlparse(self.path)
         path = parsed_url.path
 
@@ -286,6 +367,12 @@ class AppRequestHandler(BaseHTTPRequestHandler):
 
         if path == "/api/heartbeat":
             self.send_json({"status": "alive"})
+            return
+
+        if path == "/api/shutdown":
+            delay = float(payload.get("delay", 4.0)) if isinstance(payload.get("delay"), (int, float)) else 4.0
+            schedule_shutdown(delay=delay)
+            self.send_json({"status": "scheduled", "delay": delay})
             return
 
         if path == "/api/adjust-window":
@@ -494,27 +581,56 @@ class AppRequestHandler(BaseHTTPRequestHandler):
         self.send_response(404)
         self.end_headers()
 
-client_connected = False
-
 def watchdog_thread(server: HTTPServer):
-    """Monitorea el latido del frontend. Espera la conexión inicial antes de contar inactividad."""
-    global last_heartbeat, client_connected
+    """
+    Guardián defensivo de ciclo de vida con detección nativa de ventanas de Windows.
+    Garantiza que el servidor permanezca vivo mientras la ventana esté abierta (incluso si está
+    en segundo plano o inactiva por horas), y apaga el proceso limpiamente cuando la ventana se cierra.
+    """
+    global last_heartbeat, client_connected, shutdown_scheduled_time
     start_time = time.time()
-    # Esperar hasta 120 segundos a que el navegador cargue la página por primera vez
+
+    # 1. Esperar hasta 120 segundos a que el navegador cargue la página por primera vez
     while not client_connected:
         time.sleep(1)
         if time.time() - start_time > 120:
-            print("No se detectó conexión inicial en 120s. Apagando servidor.")
+            log_debug("No se detectó conexión inicial en 120s. Apagando servidor.")
             server.shutdown()
             return
 
-    # Una vez conectado, si pasan más de 30 segundos sin ningún latido o petición, apagar
+    log_debug("Watchdog: Frontend conectado con éxito. Iniciando supervisión activa.")
+
+    # 2. Bucle de supervisión continua
     while True:
-        time.sleep(3)
-        if time.time() - last_heartbeat > 30:
-            print("Cierre de ventana detectado (30s sin latidos). Apagando servidor...")
-            server.shutdown()
-            break
+        time.sleep(2)
+        now = time.time()
+
+        # Regla de oro: Si el cliente está enviando peticiones/latidos activamente (hace menos de 10s),
+        # la aplicación está 100% activa. Cancelar cualquier apagado programado y continuar.
+        if now - last_heartbeat < 10:
+            cancel_scheduled_shutdown()
+            continue
+
+        # Caso 1: Señal explícita de apagado recibida (/api/shutdown via beacon al cerrar la ventana)
+        if shutdown_scheduled_time is not None:
+            if now >= shutdown_scheduled_time:
+                log_debug("Apagado ordenado ejecutado tras recibir señal de cierre.")
+                server.shutdown()
+                break
+            continue
+
+        # Caso 2: Inactividad prolongada sin latidos por más de 180s (3 minutos)
+        if now - last_heartbeat > 180:
+            window_status = is_app_window_alive()
+            if window_status is True:
+                # La ventana sigue viva en el SO (ej. en segundo plano o minimizada)
+                # No apagar, mantener vivo y renovar heartbeat
+                last_heartbeat = now
+                continue
+            else:
+                log_debug("Inactividad prolongada sin latidos ni ventana abierta (180s). Apagando servidor...")
+                server.shutdown()
+                break
 
 def find_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -590,6 +706,9 @@ def find_and_adjust_app_window(target_w: int, target_h: int, pos_x: int = None, 
             user32.EnumWindows(WNDENUMPROC(enum_cb), 0)
 
             if found_hwnds:
+                global tracked_app_hwnds, initial_window_detected
+                tracked_app_hwnds.update(found_hwnds)
+                initial_window_detected = True
                 for hwnd in found_hwnds:
                     # Desmaximizar si el navegador recordó estado maximizado
                     user32.ShowWindow(hwnd, SW_RESTORE)
@@ -646,6 +765,9 @@ def launch_desktop_window(port: int):
                 f"--app={url}",
                 f"--window-size={target_w},{target_h}",
                 f"--window-position={pos_x},{pos_y}",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-renderer-backgrounding",
             ]
             log_debug(f"Iniciando ventana de app ({target_w}x{target_h} @ {pos_x},{pos_y}): {' '.join(cmd)}")
             subprocess.Popen(cmd)
@@ -678,8 +800,8 @@ def main():
     log_debug(f"Puerto asignado: {port}")
     last_heartbeat = time.time()
     
-    server = HTTPServer(('127.0.0.1', port), AppRequestHandler)
-    log_debug("HTTPServer instanciado")
+    server = ThreadingHTTPServer(('127.0.0.1', port), AppRequestHandler)
+    log_debug("ThreadingHTTPServer instanciado")
     
     t_watchdog = threading.Thread(target=watchdog_thread, args=(server,), daemon=True)
     t_watchdog.start()
