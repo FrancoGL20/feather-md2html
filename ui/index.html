@@ -1020,10 +1020,32 @@ Este es un reporte con alertas:
       setTimeout(() => t.classList.remove('show'), 2200);
     }
 
+    // Fetch helper con reintento automático y timeout garantizado para evitar cuelgues de red
+    async function fetchWithRetry(url, options = {}, retries = 2, delayMs = 350, timeoutMs = 8000) {
+      let lastErr;
+      for (let i = 0; i < retries; i++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const fetchOptions = { ...options, signal: controller.signal };
+          const res = await fetch(url, fetchOptions);
+          clearTimeout(timeoutId);
+          return res;
+        } catch (err) {
+          clearTimeout(timeoutId);
+          lastErr = err;
+          if (i < retries - 1) {
+            await new Promise(r => setTimeout(r, delayMs));
+          }
+        }
+      }
+      throw lastErr;
+    }
+
     // Load initial config & recents
     async function loadConfig() {
       try {
-        const res = await fetch('/api/config');
+        const res = await fetchWithRetry('/api/config');
         const data = await res.json();
         currentConfig = data;
         document.getElementById('currentDirPath').textContent = data.root_dir;
@@ -1258,7 +1280,7 @@ Este es un reporte con alertas:
       });
 
       try {
-        const res = await fetch('/api/convert', {
+        const res = await fetchWithRetry('/api/convert', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -1361,12 +1383,102 @@ Este es un reporte con alertas:
       }
     });
 
-    // Heartbeat to keep backend server alive
-    function sendHeartbeat() {
-      fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
+    // Sistema Resiliente de Heartbeat y Detección de Estado
+    let consecutiveHeartbeatFailures = 0;
+    let heartbeatWorker = null;
+
+    function updateEngineStatus(isActive) {
+      const text = document.getElementById('engineStatus');
+      const dot = document.querySelector('.status-dot');
+      const capsule = document.querySelector('.status-capsule');
+      if (isActive) {
+        if (text) text.textContent = 'Motor Activo';
+        if (capsule) {
+          capsule.style.background = 'var(--success-surface)';
+          capsule.style.color = 'var(--success)';
+          capsule.style.borderColor = 'rgba(16, 185, 129, 0.25)';
+        }
+        if (dot) {
+          dot.style.background = 'var(--success)';
+          dot.style.boxShadow = '0 0 8px var(--success)';
+        }
+      } else {
+        if (text) text.textContent = 'Reconectando...';
+        if (capsule) {
+          capsule.style.background = 'rgba(239, 68, 68, 0.14)';
+          capsule.style.color = 'var(--danger)';
+          capsule.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+        }
+        if (dot) {
+          dot.style.background = 'var(--danger)';
+          dot.style.boxShadow = '0 0 8px var(--danger)';
+        }
+      }
     }
+
+    async function sendHeartbeat() {
+      try {
+        const res = await fetch('/api/heartbeat', { method: 'POST' });
+        if (res.ok) {
+          if (consecutiveHeartbeatFailures > 0) {
+            consecutiveHeartbeatFailures = 0;
+            updateEngineStatus(true);
+          }
+        } else {
+          consecutiveHeartbeatFailures++;
+          if (consecutiveHeartbeatFailures >= 3) {
+            updateEngineStatus(false);
+          }
+        }
+      } catch (err) {
+        consecutiveHeartbeatFailures++;
+        if (consecutiveHeartbeatFailures >= 3) {
+          updateEngineStatus(false);
+        }
+      }
+    }
+
+    // Inicializar Web Worker para latidos en segundo plano inmunes a throttling de Chromium
+    try {
+      const workerCode = `
+        setInterval(() => {
+          fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
+        }, 3500);
+      `;
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      heartbeatWorker = new Worker(URL.createObjectURL(blob));
+    } catch (e) {
+      console.warn('Web Worker no disponible, operando en hilo principal:', e);
+    }
+
+    // Intervalo de respaldo en hilo principal
     sendHeartbeat();
-    setInterval(sendHeartbeat, 3000);
+    setInterval(sendHeartbeat, 3500);
+
+    // Reactivación inmediata al recuperar foco o visibilidad
+    window.addEventListener('focus', () => {
+      sendHeartbeat();
+      loadConfig();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        sendHeartbeat();
+        loadConfig();
+      }
+    });
+
+    // Notificar cierre ordenado cuando el usuario cierra la ventana
+    function notifyShutdown() {
+      try {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon('/api/shutdown', JSON.stringify({ reason: 'window_unload' }));
+        } else {
+          fetch('/api/shutdown', { method: 'POST', keepalive: true }).catch(() => {});
+        }
+      } catch (e) {}
+    }
+    window.addEventListener('pagehide', notifyShutdown);
+    window.addEventListener('beforeunload', notifyShutdown);
 
     // Dynamic Window Sizing (Compact on large monitors, comfortable & spacious on laptops)
     function adjustWindowSize() {
@@ -1396,9 +1508,6 @@ Este es un reporte con alertas:
         body: JSON.stringify({ screen_w: sw, screen_h: sh })
       }).catch(() => {});
     }
-
-    // Reload config & recents whenever window gains focus (in case files were added/converted externally)
-    window.addEventListener('focus', loadConfig);
 
     // Initial call
     adjustWindowSize();

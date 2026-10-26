@@ -257,6 +257,59 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
         self.assertEqual(status, 200)
         self.assertIsNone(data.get("file_path"))
 
+    def test_post_shutdown_schedules_shutdown(self):
+        status, _, data = self._http_post_json("/api/shutdown", {"delay": 5.0})
+        self.assertEqual(status, 200)
+        self.assertEqual(data.get("status"), "scheduled")
+        self.assertEqual(data.get("delay"), 5.0)
+        self.assertIsNotNone(app.shutdown_scheduled_time)
+        # Cleanup
+        app.cancel_scheduled_shutdown()
+
+    def test_incoming_request_cancels_scheduled_shutdown(self):
+        app.schedule_shutdown(10.0)
+        self.assertIsNotNone(app.shutdown_scheduled_time)
+
+        # A heartbeat should cancel the shutdown
+        status, _, data = self._http_post_json("/api/heartbeat")
+        self.assertEqual(status, 200)
+        self.assertIsNone(app.shutdown_scheduled_time)
+
+        # Test that GET also cancels scheduled shutdown
+        app.schedule_shutdown(10.0)
+        self.assertIsNotNone(app.shutdown_scheduled_time)
+        status_get, _, _ = self._http_get("/api/config")
+        self.assertEqual(status_get, 200)
+        self.assertIsNone(app.shutdown_scheduled_time)
+
+    def test_is_app_window_alive_lifecycle(self):
+        # Save previous state
+        orig_hwnds = app.tracked_app_hwnds.copy()
+        orig_detected = app.initial_window_detected
+
+        try:
+            # Case 1: Tracked HWND is valid in OS
+            app.tracked_app_hwnds = {12345}
+            app.initial_window_detected = True
+            with patch("ctypes.windll.user32.IsWindow", return_value=1):
+                self.assertTrue(app.is_app_window_alive())
+
+            # Case 2: Tracked HWND was closed/destroyed by user
+            with patch("ctypes.windll.user32.IsWindow", return_value=0), \
+                 patch("app.find_app_hwnds", return_value=[]):
+                self.assertFalse(app.is_app_window_alive())
+
+            # Case 3: Discovery finds a new window
+            app.tracked_app_hwnds = set()
+            app.initial_window_detected = False
+            with patch("app.find_app_hwnds", return_value=[99999]), \
+                 patch("ctypes.windll.user32.IsWindow", return_value=1):
+                self.assertTrue(app.is_app_window_alive())
+                self.assertIn(99999, app.tracked_app_hwnds)
+        finally:
+            app.tracked_app_hwnds = orig_hwnds
+            app.initial_window_detected = orig_detected
+
     def test_unknown_routes_return_404(self):
         status_get, _, _ = self._http_get("/api/nonexistent_endpoint")
         self.assertEqual(status_get, 404)
@@ -267,3 +320,4 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
