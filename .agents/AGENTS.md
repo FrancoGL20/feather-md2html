@@ -180,35 +180,60 @@ La función `generate_latest_redirect(root_dir, newest_file, doc_title)`:
 
 El archivo `app.py` orquesta el servicio HTTP local y la integración con el sistema operativo Windows.
 
-### 5.1. Manejo del Ciclo de Vida y Watchdog Defensivo
+### 5.1. Manejo del Ciclo de Vida y Watchdog Defensivo Multicapa
 
-Para evitar que procesos huérfanos de Python se queden ejecutándose indefinidamente en memoria cuando el usuario cierra la ventana de la aplicación:
+Para evitar que procesos huérfanos de Python queden ejecutándose en memoria tras el cierre de la ventana, manteniendo la aplicación 100% activa aunque permanezca inactiva o en segundo plano por horas:
 
 ```python
-client_connected = False
-
 def watchdog_thread(server: HTTPServer):
-    global last_heartbeat, client_connected
+    global last_heartbeat, client_connected, shutdown_scheduled_time
     start_time = time.time()
-    # 1. Espera hasta 120 segundos para la primera conexión del navegador
+    # 1. Espera hasta 120 segundos para la primera conexión del frontend
     while not client_connected:
         time.sleep(1)
         if time.time() - start_time > 120:
             server.shutdown()
             return
 
-    # 2. Una vez conectado, si pasan más de 30 segundos sin ningún latido o petición, apagar
+    # 2. Supervisión activa: Detección nativa de ventana HWND y señales de apagado
     while True:
-        time.sleep(3)
-        if time.time() - last_heartbeat > 30:
+        time.sleep(2)
+        now = time.time()
+        window_status = is_app_window_alive()
+
+        # Caso 1: Ventana nativa abierta en Windows (activa, minimizada o en segundo plano)
+        if window_status is True:
+            cancel_scheduled_shutdown()
+            last_heartbeat = now  # La app está viva: nunca apagar por inactividad
+            continue
+
+        # Caso 2: Cierre físico de la ventana nativa (HWND destruido al dar clic en 'X')
+        if window_status is False:
+            if shutdown_scheduled_time is None:
+                schedule_shutdown(3.0)
+            elif now >= shutdown_scheduled_time:
+                server.shutdown()
+                break
+            continue
+
+        # Caso 3: Señal explícita de apagado recibida (/api/shutdown via beacon/unload)
+        if shutdown_scheduled_time is not None and now >= shutdown_scheduled_time:
+            server.shutdown()
+            break
+
+        # Caso 4: Fallback de seguridad para navegador externo genérico (inactividad > 300s)
+        if now - last_heartbeat > 300:
             server.shutdown()
             break
 ```
 
-**Regla de Seguridad:**
-- Cada petición (`do_GET`, `do_POST` y en particular `POST /api/heartbeat`) actualiza `last_heartbeat = time.time()` y activa `client_connected = True`.
-- La interfaz envía un latido inmediato al cargar y posteriormente un `setInterval` cada 3 segundos.
-- Si el usuario cierra la ventana de la app, el navegador interrumpe los latidos; tras 30 segundos de silencio, el servidor realiza un `server.shutdown()` limpio y el proceso `pythonw.exe` finaliza.
+**Arquitectura de Resiliencia Multicapa:**
+1. **Detección Nativa de Ventana (HWND en Win32):** El backend rastrea los identificadores de ventana (`user32.IsWindow(hwnd)`) de Microsoft Edge/Chrome. Mientras la ventana siga existiendo físicamente (incluso si el usuario la minimiza, cambia a otra app durante horas o la pantalla se apaga), el servidor **nunca se apaga**.
+2. **Latidos Inmunes a Throttling vía Web Worker:** En el frontend, los temporizadores de la ventana principal (`setInterval`) son throttled por Chromium al minimizar. La app lanza un **Web Worker en segundo plano** mediante Blob URL que emite peticiones `POST /api/heartbeat` continuas cada 3.5 segundos sin ser ralentizado.
+3. **Reactivación Inmediata por Eventos:** Al volver a enfocar la ventana (`focus`, `visibilitychange`, `pointerdown`), el frontend sincroniza inmediatamente el estado y reactiva la comunicación.
+4. **Flags Anti-Throttling en Chromium:** Al lanzar Edge/Chrome se agregan los modificadores `--disable-background-timer-throttling`, `--disable-backgrounding-occluded-windows` y `--disable-renderer-backgrounding`.
+5. **Apagado Rápido y Limpio (`/api/shutdown`):** Al cerrar la ventana (`pagehide` y `beforeunload`), el navegador despacha un `navigator.sendBeacon('/api/shutdown')` que finaliza el proceso `pythonw.exe` de inmediato sin dejar procesos huérfanos. Si el usuario recarga la página (F5), la nueva conexión cancela automáticamente el apagado en el periodo de gracia.
+6. **Reintentos Transparentes en el Cliente:** Las llamadas críticas del frontend implementan `fetchWithRetry` con reintento automático y backoff de 350ms para absorber cualquier transición de reposo de sockets tras largos periodos de inactividad.
 
 ### 5.2. Compatibilidad con `pythonw.exe`
 
@@ -241,6 +266,7 @@ En Windows, al ejecutar scripts mediante `pythonw.exe` (modo ventana sin consola
 | `/api/delete-document` | `POST` | Elimina un documento HTML de la biblioteca y del historial | `{ filename?: string, file_path?: string }` | `{ success: bool, filename: string, recent_conversions: array }` |
 | `/api/adjust-window` | `POST` | Ajusta y centra nativamente el tamaño de la ventana según la resolución de la pantalla | `{ screen_w?: number, screen_h?: number }` | `{ success: bool, target_w, target_h, pos_x, pos_y }` |
 | `/api/heartbeat` | `POST` | Refresca el temporizador del watchdog | Ninguno | `{ status: "alive" }` |
+| `/api/shutdown` | `POST` | Notifica cierre inminente de la ventana del navegador | `{ delay?: number, reason?: string }` | `{ status: "scheduled", delay: number }` |
 
 ### 5.4. Dimensionamiento Dinámico Adaptativo y Control Nativo de Ventana
 
@@ -335,7 +361,7 @@ Al hacer doble clic en el acceso directo, Windows invoca `pythonw.exe` en el dir
 
 La aplicación cuenta con dos niveles de validación automatizada:
 
-### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 85 Tests)
+### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 88 Tests)
 
 Para ejecutar la verificación completa de toda la base de código con aislamiento total de disco:
 
@@ -358,12 +384,14 @@ La suite modular utiliza exclusivamente la biblioteca estándar `unittest` (Zero
    - Tablas responsivas con detección y alineación de columnas (`:---`, `:---:`, `---:`).
    - Jerarquía multinivel de listas anidadas y checklists interactivos.
    - Integración de catálogo cronológico (`index.html`) y puntero (`latest.html`).
-2. **`tests/test_app_api.py` (19 tests):**
+2. **`tests/test_app_api.py` (22 tests):**
    - Servidor HTTP en loopback real sobre puerto efímero.
    - Servicio de SPA `ui/index.html` y cabeceras MIME.
    - Entrega de recursos estáticos (`/assets/`) y manejo de códigos 404.
    - Endpoints `/api/config` (GET y POST), persistencia y validación de rutas.
    - Endpoint `/api/heartbeat` y control del watchdog.
+   - Endpoint `/api/shutdown` y cancelación defensiva por nuevas peticiones/GET.
+   - Detección del ciclo de vida y validación de presencia de ventana nativa (`is_app_window_alive`).
    - Endpoint `/api/convert` desde texto directo o archivos físicos.
    - Endpoint `/api/delete-document` con regeneración de índice y catálogo.
    - Endpoints de orquestación del sistema (`/api/open-file`, `/api/open-folder`, `/api/open-index`, `/api/browse-folder`, `/api/browse-file`).
