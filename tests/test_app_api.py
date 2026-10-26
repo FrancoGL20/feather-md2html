@@ -106,6 +106,8 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
         body_text = body.decode("utf-8")
         self.assertIn("<title>", body_text)
         self.assertIn("Markdown", body_text)
+        self.assertIn("pasteAndConvertBtn", body_text)
+        self.assertIn("dual-action-grid", body_text)
 
     def test_get_assets_serves_existing_icon(self):
         status, headers, body = self._http_get("/assets/app_icon.png")

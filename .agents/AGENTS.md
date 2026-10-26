@@ -299,9 +299,10 @@ La interfaz está construida con HTML5 semántico y CSS Vanilla puro sin librer�
 3. **Pestañas Duales de Entrada:**
    - **Pestaña 1 (Pegar Markdown):** Área de texto con scroll suave, contador dinámico en tiempo real de caracteres y palabras, botón directo de pegar desde el portapapeles y botón de limpiar.
    - **Pestaña 2 (Archivo .md):** Zona de arrastrar y soltar (Drag & Drop) con soporte para eventos `dragover` / `drop` y lectura inmediata vía `FileReader`, además de botón para examinar mediante el explorador del sistema.
-4. **Botón Principal de Conversión:**
-   - Gradiente ámbar volcánico sunset mate con resplandor cálido (`box-shadow: 0 4px 18px rgba(249, 115, 22, 0.3)`).
-   - Atajo de teclado global: `Ctrl + Enter` (o `Cmd + Enter`) compila inmediatamente sin usar el ratón.
+4. **Barra de Acciones Duales (Dual Action Grid):**
+   - **Botón Principal Hero (📋⚡ Pegar y Convertir):** Gradiente ámbar volcánico sunset mate (`#f97316` a `#d45706`) con resplandor cálido (`box-shadow: 0 4px 18px rgba(249, 115, 22, 0.3)`). En 1 solo clic lee el contenido del portapapeles (`navigator.clipboard.readText()`), conmuta a la pestaña de texto si estaba en archivo, actualiza el textarea/contadores y ejecuta la conversión de inmediato. Atajo global: `Ctrl + Shift + V`.
+   - **Botón Secundario Hero (⚡ Convertir Actual):** Superficie basalto mate (`#17181c`) con borde fino reflectante y hover interactivo. Procesa el texto que ya está escrito en el editor o el archivo `.md` cargado. Atajo global: `Ctrl + Enter`.
+   - **Diseño Responsivo:** En pantallas estándar se distribuyen en cuadrícula 1.15fr / 0.85fr; en pantallas ultra-estrechas ($< 580\text{px}$) se apilan verticalmente de forma fluida.
 5. **Tarjeta de Resultados Fluida:**
    - Oculta por defecto; se materializa con animación física de resorte tras la compilación.
    - Muestra nombre del archivo, badge de tiempo de procesamiento (`< 20ms`), botones de acción: `[ 🌐 Abrir en Navegador ]`, `[ 📋 Copiar Enlace ]` (con feedback táctil *"✓ Copiado"*), `[ 📁 Abrir Carpeta ]` y `[ 📚 Ver Índice ]`.

@@ -426,7 +426,85 @@
       gap: 0.5rem;
     }
 
-    /* Convert Button */
+    /* Dual Action Grid (Opción A: Pegar y Convertir + Convertir Actual) */
+    .dual-action-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 0.65rem;
+      width: 100%;
+    }
+
+    .btn-action-hero {
+      border-radius: 12px;
+      padding: 0.68rem 1rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.18rem;
+      transition: all 130ms var(--spring);
+      user-select: none;
+      border: 1px solid transparent;
+      min-height: 52px;
+    }
+
+    .btn-action-hero:active {
+      transform: scale(0.97);
+    }
+
+    .btn-hero-main-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.92rem;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
+
+    .btn-hero-sub-label {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+
+    /* Primary: Pegar y Convertir (Ámbar Volcánico Sunset) */
+    .btn-hero-primary {
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border-color: rgba(255, 255, 255, 0.22);
+      box-shadow: var(--btn-shadow);
+    }
+
+    .btn-hero-primary:hover {
+      background: var(--btn-hover);
+      box-shadow: 0 6px 20px rgba(249, 115, 22, 0.42);
+      transform: translateY(-1px);
+    }
+
+    .btn-hero-primary .btn-hero-sub-label {
+      opacity: 0.9;
+    }
+
+    /* Secondary: Convertir Actual (Basalto Mate) */
+    .btn-hero-secondary {
+      background: var(--card-alt);
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .btn-hero-secondary:hover {
+      background: var(--card-hover);
+      border-color: rgba(255, 255, 255, 0.22);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .btn-hero-secondary .btn-hero-sub-label {
+      color: var(--text-muted);
+    }
+
+    /* Convert Button genérico para compatibilidad */
     .convert-btn {
       background: var(--btn-bg);
       color: var(--btn-text);
@@ -444,16 +522,6 @@
       box-shadow: var(--btn-shadow);
       transition: all 120ms var(--spring);
       width: 100%;
-    }
-
-    .convert-btn:hover {
-      background: var(--btn-hover);
-      box-shadow: 0 6px 18px rgba(249, 115, 22, 0.38);
-      transform: translateY(-1px);
-    }
-
-    .convert-btn:active {
-      transform: scale(0.98);
     }
 
     /* Result Card */
@@ -720,6 +788,10 @@
       .library-link-btn {
         align-self: flex-start;
       }
+      .dual-action-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+      }
       .result-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -874,10 +946,22 @@ Este es un reporte con alertas:
         </div>
       </div>
 
-      <button class="convert-btn" id="convertBtn" onclick="performConversion()">
-        <span>⚡ Convertir a HTML</span>
-        <span style="font-size: 0.75rem; opacity: 0.8; font-weight: 500;">(Ctrl + Enter)</span>
-      </button>
+      <div class="dual-action-grid">
+        <button class="btn-action-hero btn-hero-primary" id="pasteAndConvertBtn" onclick="pasteAndConvert()" title="Pega el portapapeles y compila a HTML en un solo clic (Ctrl+Shift+V)">
+          <span class="btn-hero-main-label">
+            <span style="font-size: 1.05rem;">📋⚡</span>
+            <span>Pegar y Convertir</span>
+          </span>
+          <span class="btn-hero-sub-label">1 Clic · Portapapeles (Ctrl+Shift+V)</span>
+        </button>
+        <button class="btn-action-hero btn-hero-secondary" id="convertBtn" onclick="performConversion()" title="Convierte el texto o archivo actual">
+          <span class="btn-hero-main-label">
+            <span>⚡</span>
+            <span>Convertir Actual</span>
+          </span>
+          <span class="btn-hero-sub-label">(Ctrl + Enter)</span>
+        </button>
+      </div>
     </div>
 
     <!-- Result Card -->
@@ -1110,9 +1194,40 @@ Este es un reporte con alertas:
       document.getElementById('charCount').textContent = `${chars} caracteres · ${words} palabras`;
     }
 
+    // Paste and Convert in 1 Click
+    async function pasteAndConvert() {
+      let text = '';
+      try {
+        text = await navigator.clipboard.readText();
+      } catch (err) {
+        console.error('Error al leer portapapeles:', err);
+        showToast('⚠️ Permiso del portapapeles denegado. Usa Ctrl+V y presiona Convertir');
+        return;
+      }
+
+      if (!text || !text.trim()) {
+        showToast('⚠️ El portapapeles está vacío o no contiene texto');
+        return;
+      }
+
+      // Si estaba en la pestaña de archivo, cambiar automáticamente a la pestaña de texto
+      if (activeTab !== 'text') {
+        switchTab('text');
+      }
+
+      // Volcar contenido en el textarea para visualización y edición
+      const ta = document.getElementById('markdownInput');
+      ta.value = text;
+      updateCounters();
+
+      showToast('⚡ Pegando del portapapeles y convirtiendo...');
+      await performConversion();
+    }
+
     // Perform Conversion
     async function performConversion() {
-      const btn = document.getElementById('convertBtn');
+      const pasteBtn = document.getElementById('pasteAndConvertBtn');
+      const convertBtn = document.getElementById('convertBtn');
       const customTitle = document.getElementById('customTitleInput').value.trim();
 
       let payload = {
@@ -1135,8 +1250,12 @@ Este es un reporte con alertas:
         payload.text = text;
       }
 
-      btn.style.opacity = '0.6';
-      btn.style.pointerEvents = 'none';
+      [pasteBtn, convertBtn].forEach(b => {
+        if (b) {
+          b.style.opacity = '0.6';
+          b.style.pointerEvents = 'none';
+        }
+      });
 
       try {
         const res = await fetch('/api/convert', {
@@ -1160,8 +1279,12 @@ Este es un reporte con alertas:
         console.error('Error al convertir:', err);
         showToast('Error de comunicación con el motor');
       } finally {
-        btn.style.opacity = '1';
-        btn.style.pointerEvents = 'auto';
+        [pasteBtn, convertBtn].forEach(b => {
+          if (b) {
+            b.style.opacity = '1';
+            b.style.pointerEvents = 'auto';
+          }
+        });
       }
     }
 
@@ -1227,9 +1350,12 @@ Este es un reporte con alertas:
       }
     });
 
-    // Keyboard Shortcuts (Ctrl + Enter to convert)
+    // Keyboard Shortcuts (Ctrl + Shift + V to Paste & Convert; Ctrl + Enter to Convert)
     document.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'V' || e.key === 'v')) {
+        e.preventDefault();
+        pasteAndConvert();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
         performConversion();
       }
