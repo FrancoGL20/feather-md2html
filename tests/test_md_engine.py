@@ -418,5 +418,128 @@ class TestVolcanicAmberThemeDesignTokens(unittest.TestCase):
         self.assertIn("stroke='%23f97316'", md_engine.HTML_DOC_TEMPLATE)
 
 
+class TestMermaidDiagrams(IsolatedEnvironmentTestCase):
+    """
+    Suite de pruebas exhaustiva para el soporte de Diagramas Mermaid 100% Offline e Interactivos.
+    Verifica:
+    1. Parseo léxico y sintáctico de bloques ```mermaid.
+    2. Generación de tarjeta interactiva Apple HIG con botones "Ver código" y "Copiar".
+    3. Inyección autónoma del runtime de Mermaid embebido sin llamadas externas ni CDNs.
+    4. Omisión del script de Mermaid en documentos sin diagramas (Zero-Bloatware).
+    5. Asignación secuencial de identificadores únicos para múltiples diagramas.
+    6. Seguridad contra inyecciones XSS dentro de los nodos y etiquetas del diagrama.
+    7. Estilos de diseño, tokens de color y reglas de impresión en COMMON_STYLES.
+    """
+
+    def test_mermaid_block_parsing_and_card_structure(self):
+        md = "```mermaid\ngraph TD\n  A[Inicio] --> B[Fin]\n```"
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_mermaid"])
+        body = parsed["body"]
+        self.assertIn('class="mermaid-block" id="block-mermaid-1"', body)
+        self.assertIn('class="mermaid-header"', body)
+        self.assertIn('<span>Diagrama Mermaid</span>', body)
+        self.assertIn("toggleMermaidSource('mermaid-1', this)", body)
+        self.assertIn("copyMermaidSource('mermaid-1', this)", body)
+        self.assertIn('id="render-mermaid-1"', body)
+        self.assertIn('id="source-mermaid-1"', body)
+        self.assertIn('id="raw-mermaid-1"', body)
+        self.assertIn('style="display: none;"', body)
+        self.assertIn('A[Inicio] --&gt; B[Fin]', body)
+
+    def test_multiple_mermaid_blocks_sequential_ids(self):
+        md = """# Documento con Múltiples Diagramas
+
+```mermaid
+graph TD
+  A --> B
+```
+
+Texto intermedio explicativo.
+
+```mermaid
+sequenceDiagram
+  Alice->>Bob: Hola
+```
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_mermaid"])
+        body = parsed["body"]
+        self.assertIn('id="block-mermaid-1"', body)
+        self.assertIn('id="block-mermaid-2"', body)
+        self.assertIn("toggleMermaidSource('mermaid-1', this)", body)
+        self.assertIn("toggleMermaidSource('mermaid-2', this)", body)
+        self.assertIn('id="render-mermaid-1"', body)
+        self.assertIn('id="render-mermaid-2"', body)
+        self.assertIn('id="raw-mermaid-1"', body)
+        self.assertIn('id="raw-mermaid-2"', body)
+
+    def test_standard_code_blocks_unaffected(self):
+        md = "```python\ndef test():\n    return 42\n```"
+        parsed = md_engine.parse_markdown(md)
+        self.assertFalse(parsed["has_mermaid"])
+        body = parsed["body"]
+        self.assertNotIn("mermaid-block", body)
+        self.assertIn('class="code-block"', body)
+        self.assertIn("<span>PYTHON</span>", body)
+
+    def test_mermaid_runtime_inlined_offline_when_present(self):
+        md = "# Arquitectura de Sistema\n\n```mermaid\ngraph LR\n  Client --> Server\n```"
+        res = md_engine.convert_and_update_library(md, str(self.test_root), "Doc Con Diagrama")
+        self.assertTrue(res["success"])
+        html_path = Path(res["file_path"])
+        self.assertTrue(html_path.exists())
+
+        with open(html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Verifica runtime y funciones cliente inyectadas
+        self.assertIn("renderMermaidDiagrams", content)
+        self.assertIn("toggleMermaidSource", content)
+        self.assertIn("copyMermaidSource", content)
+        self.assertIn("mermaid.initialize", content)
+        # Verifica sincronización con alternador de tema
+        self.assertIn("if (typeof renderMermaidDiagrams === 'function')", content)
+        # Verifica ausencia total de dependencias remotas / CDNs (Zero-Bloatware / 100% Offline)
+        self.assertNotIn("cdn.jsdelivr.net", content)
+        self.assertNotIn("unpkg.com", content)
+        self.assertNotIn("cdnjs.cloudflare.com", content)
+
+    def test_mermaid_runtime_omitted_when_no_diagrams(self):
+        md = "# Documento Regular\n\nEste documento no tiene diagramas mermaid, solo texto y listas.\n- Item 1\n- Item 2"
+        res = md_engine.convert_and_update_library(md, str(self.test_root), "Doc Sin Diagrama")
+        self.assertTrue(res["success"])
+        html_path = Path(res["file_path"])
+
+        with open(html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # El runtime y controladores pesados no deben inyectarse
+        self.assertNotIn("mermaid.initialize", content)
+        self.assertNotIn("toggleMermaidSource", content)
+        # El documento debe ser ligero (< 50 KB)
+        self.assertLess(html_path.stat().st_size, 50000)
+
+    def test_mermaid_xss_protection(self):
+        md = "```mermaid\ngraph TD\n  A[\"<script>alert('xss')</script>\"] --> B\n```"
+        compiled_body = md_engine.compile_markdown_to_body(md)
+        self.assertNotIn("<script>", compiled_body)
+        self.assertIn("&lt;script&gt;", compiled_body)
+
+    def test_mermaid_css_styles_and_print_rules(self):
+        self.assertIn(".mermaid-block {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-header {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-title {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-actions {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-render {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-source {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-error {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-loading {", md_engine.COMMON_STYLES)
+        # Print media query
+        self.assertIn(".mermaid-actions { display: none !important; }", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-source { display: none !important; }", md_engine.COMMON_STYLES)
+
+
 if __name__ == "__main__":
     unittest.main()
+
