@@ -316,6 +316,21 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
             app.tracked_app_hwnds = orig_hwnds
             app.initial_window_detected = orig_detected
 
+    def test_get_logs(self):
+        status, headers, body = self._http_get("/api/logs")
+        self.assertEqual(status, 200)
+        self.assertIn("application/json", headers.get("Content-Type", ""))
+        data = json.loads(body.decode("utf-8"))
+        self.assertIn("logs", data)
+        self.assertIsInstance(data["logs"], list)
+
+    def test_open_logs(self):
+        with patch("os.startfile") as mock_startfile:
+            status, _, data = self._http_post_json("/api/open-logs")
+            self.assertEqual(status, 200)
+            self.assertEqual(data.get("status"), "opened")
+            mock_startfile.assert_called_once()
+
     def test_unknown_routes_return_404(self):
         status_get, _, _ = self._http_get("/api/nonexistent_endpoint")
         self.assertEqual(status_get, 404)
@@ -326,4 +341,5 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
