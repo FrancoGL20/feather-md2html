@@ -129,6 +129,14 @@ El parser implementa un compilador de un solo paso que procesa el documento lín
    - Enlaces externos `[texto](url)` con apertura segura (`target="_blank" rel="noopener noreferrer"`).
    - Imágenes `![alt](url)` estilizadas con radios concéntricos.
    - Badges de estado automáticos: `[PASS]`, `[FAIL]`, `[WARN]`, `[INFO]`, `[OK]`, `[ERROR]`.
+8. **Diagramas Mermaid 100% Offline e Interactivos (Mermaid Diagrams):**
+   - Detección automática de bloques delimitados por ```mermaid.
+   - Construcción de tarjeta interactiva en tema Volcanic Amber con cabecera en mayúsculas `DIAGRAMA MERMAID`, icono SVG vectorial, botón táctil **"Ver código" / "Ocultar código"** y botón **"Copiar"** (con feedback en tiempo real `"✓ Copiado"`).
+   - Contenedor SVG centrado responsivo con soporte para temas claro/oscuro dinámicos.
+   - Runtime embebido offline: `assets/mermaid.min.js` (Mermaid 11.x) se inyecta de forma autónoma en el documento HTML únicamente cuando existen diagramas Mermaid, garantizando documentos autocontenidos y portables sin conexiones remotas ni dependencias de red.
+   - Sincronización en caliente con el botón de alternancia de tema (`toggleTheme()` re-renderiza con la paleta `dark` o `default`).
+   - Manejo defensivo de errores sintácticos con alerta visual y auto-despliegue del código fuente.
+   - En documentos sin diagramas Mermaid, se omite completamente el bundle de scripts (Zero-Bloatware), preservando un tamaño de archivo mínimo (< 50 KB) y tiempos de compilación de < 20 ms.
 
 ### 4.2. Barra de Navegación Cruzada (Cross-Document Navigation Bar)
 
@@ -173,6 +181,15 @@ La función `generate_index_html(root_dir: Path)`:
 La función `generate_latest_redirect(root_dir, newest_file, doc_title)`:
 - Crea un archivo `latest.html` con una cabecera `<meta http-equiv="refresh" content="0; url=./{newest_filename}">`.
 - Incluye una tarjeta de respaldo con botón manual por si los meta-refresh automáticos estuvieran restringidos en el navegador.
+
+### 4.5. Renderizado y Ciclo de Vida de Diagramas Mermaid Offline
+
+Para garantizar portabilidad y autocontención absoluta sin vulnerar la premisa *Zero-Bloatware*:
+1. **Detección Condicional y Cero Impacto:** El analizador sintáctico en `md_engine.py` solo marca `has_mermaid = True` si el documento incluye bloques ```mermaid. Los documentos ordinarios no reciben scripts adicionales ni aumentan de tamaño.
+2. **Caché de Runtime en Memoria:** `get_mermaid_runtime_code()` carga `assets/mermaid.min.js` una sola vez y lo mantiene en memoria RAM, permitiendo inyecciones instantáneas (< 1ms).
+3. **Decodificación Segura (Anti-XSS):** Los datos fuente del diagrama se almacenan en un `<div id="raw-..." style="display: none;">` escapado con `html.escape()`. El controlador cliente en JavaScript lee `.textContent`, el cual es decodificado de forma nativa por el DOM sin ejecutar etiquetas `<script>` maliciosas.
+4. **Sincronización Bidireccional de Tema:** Cuando el usuario alterna entre tema oscuro y claro (`toggleTheme()`), se invoca automáticamente `renderMermaidDiagrams()`, la cual reinicializa Mermaid con `theme: 'dark'` o `theme: 'default'` y recompila los SVGs en caliente.
+5. **Aislamiento en Impresión:** La regla `@media print` oculta los botones de acción y el visor de código fuente, preservando únicamente el diagrama SVG centrado y limpio para generación de PDFs o impresión en papel.
 
 ---
 

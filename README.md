@@ -56,7 +56,14 @@ Convierte texto Markdown o archivos `.md` en documentos HTML autónomos y profes
    - Sangría progresiva a la derecha para sublistas anidadas con viñetas concéntricas (`disc` -> `circle` -> `square`).
    - Enlaces intra-documento con navegación fluida sin recarga.
 
-8. **Diseño Adaptativo y Tamaño Dinámico de Ventana:**
+8. **Diagramas Mermaid 100% Offline e Interactivos:**
+   - Detección automática de bloques ```mermaid (diagramas de flujo, secuencia, arquitectura, clases, etc.).
+   - Tarjeta interactiva en tema Volcanic Amber con botones **"Ver código" / "Ocultar código"** y **"Copiar"** (con feedback "✓ Copiado").
+   - 100% Autónomo y Portable: runtime embebido directamente en el HTML generado, sin requerir conexión a internet ni CDNs.
+   - Sincronización en caliente al cambiar de tema (claro/oscuro).
+   - Cero impacto en documentos ordinarios: se omite el bundle de Mermaid si no hay diagramas, preservando compilaciones en < 20 ms.
+
+9. **Diseño Adaptativo y Tamaño Dinámico de Ventana:**
    - **Inicio inteligente según pantalla:** Ventana compacta y pequeña en monitores de escritorio para facilitar la multitarea, y amplia/espaciosa en laptops.
    - **Interfaz 100% responsiva:** Tipografía fluida con funciones `clamp()`, botones adaptativos en cuadrículas dinámicas y soporte desde 360px hasta 4K.
 
@@ -75,19 +82,19 @@ Convierte texto Markdown o archivos `.md` en documentos HTML autónomos y profes
 
 ## 🧪 Pruebas Automatizadas y Calidad de Código
 
-La aplicación cuenta con una suite integral de 85 pruebas unitarias, de integración, de seguridad y de geometría, sin dependencias externas:
+La aplicación cuenta con una suite integral de 96 pruebas unitarias, de integración, de seguridad y de geometría, sin dependencias externas:
 
 ```powershell
-# Ejecutar suite integral completa (85 tests con métricas en tiempo real):
+# Ejecutar suite integral completa (96 tests con métricas en tiempo real):
 python run_tests.py
 
-# O ejecutar verificación rápida de humo (9 checks):
+# O ejecutar verificación rápida de humo (10 checks):
 python verify_app.py
 ```
 
 ### Módulos de Prueba (`tests/`):
-- **`tests/test_md_engine.py` (45 tests):** Compilador léxico y sintáctico, tokens del tema volcanic amber & deep obsidian, callouts GitHub, tablas con alineación, atajos `[[kbd:...]]`, jerarquía de listas anidadas, badges de estado, slugify y catálogo cronológico.
-- **`tests/test_app_api.py` (19 tests):** API REST del servidor HTTP local sobre loopback real (`127.0.0.1`), códigos de estado HTTP, endpoints GET/POST, validación y manejo de errores.
+- **`tests/test_md_engine.py` (52 tests):** Compilador léxico y sintáctico, diagramas Mermaid offline e interactivos, tokens del tema volcanic amber & deep obsidian, callouts GitHub, tablas con alineación, atajos `[[kbd:...]]`, jerarquía de listas anidadas, badges de estado, slugify y catálogo cronológico.
+- **`tests/test_app_api.py` (20 tests):** API REST del servidor HTTP local sobre loopback real (`127.0.0.1`), códigos de estado HTTP, endpoints GET/POST, servicio de assets estáticos (PNG, ICO, JS), validación y manejo de errores.
 - **`tests/test_window_geometry.py` (7 tests):** Detección de pantallas de escritorio vs. laptops, dimensionamiento adaptativo, límites mínimos y centrado nativo.
 - **`tests/test_config_and_history.py` (9 tests):** Persistencia de configuración, auto-recarga de documentos existentes al abrir la app, recuperación ante JSON corrupto, límite estricto de 10 elementos e higiene de archivos fantasma.
 - **`tests/test_security.py` (5 tests):** Prevención de Path Traversal en `/assets/`, protección de archivos del sistema e `index.html`/`latest.html` contra eliminación y sanitización XSS.
