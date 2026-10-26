@@ -284,6 +284,8 @@ En Windows, al ejecutar scripts mediante `pythonw.exe` (modo ventana sin consola
 | `/api/adjust-window` | `POST` | Ajusta y centra nativamente el tamaño de la ventana según la resolución de la pantalla | `{ screen_w?: number, screen_h?: number }` | `{ success: bool, target_w, target_h, pos_x, pos_y }` |
 | `/api/heartbeat` | `POST` | Refresca el temporizador del watchdog | Ninguno | `{ status: "alive" }` |
 | `/api/shutdown` | `POST` | Notifica cierre inminente de la ventana del navegador | `{ delay?: number, reason?: string }` | `{ status: "scheduled", delay: number }` |
+| `/api/logs` | `GET` | Obtiene las líneas más recientes del archivo de registro `debug_log.txt` | Ninguno | `{ logs: string[] }` |
+| `/api/open-logs` | `POST` | Abre el archivo `debug_log.txt` en el Bloc de notas o editor nativo de Windows | Ninguno | `{ status: "opened" }` |
 
 ### 5.4. Dimensionamiento Dinámico Adaptativo y Control Nativo de Ventana
 
