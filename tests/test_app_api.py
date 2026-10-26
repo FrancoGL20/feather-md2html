@@ -119,6 +119,12 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
         status, headers, body = self._http_get("/assets/non_existent_image.png")
         self.assertEqual(status, 404)
 
+    def test_get_assets_serves_mermaid_js(self):
+        status, headers, body = self._http_get("/assets/mermaid.min.js")
+        self.assertEqual(status, 200)
+        self.assertIn("application/javascript", headers.get("Content-Type", ""))
+        self.assertGreater(len(body), 1000000)
+
     def test_get_config_returns_json(self):
         status, headers, data = self._http_get("/api/config")
         self.assertEqual(status, 200)

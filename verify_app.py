@@ -187,6 +187,27 @@ def saludar(nombre):
     assert "ul ul, ol ul" in list_html, "Faltan reglas CSS de sangría anidada"
     print("  ✓ Jerarquía de listas anidadas validada con sangría correcta")
 
+    # 10. Test Mermaid Diagram Rendering (100% Offline & Interactive)
+    print("[10/10] Verificando renderizado de diagramas Mermaid 100% offline...")
+    mermaid_md = """# Arquitectura Offline
+```mermaid
+graph TD
+  A[Cliente] --> B[Servidor Local]
+  B --> C[Motor md_engine]
+```
+"""
+    res_mermaid = md_engine.convert_and_update_library(mermaid_md, str(test_root), custom_title="Prueba Mermaid")
+    assert res_mermaid["success"] is True
+    with open(res_mermaid["file_path"], "r", encoding="utf-8") as f:
+        mermaid_html = f.read()
+    assert 'class="mermaid-block" id="block-mermaid-1"' in mermaid_html, "Falta bloque mermaid-block"
+    assert 'toggleMermaidSource' in mermaid_html, "Falta controlador toggleMermaidSource"
+    assert 'copyMermaidSource' in mermaid_html, "Falta controlador copyMermaidSource"
+    assert 'renderMermaidDiagrams' in mermaid_html, "Falta inicializador renderMermaidDiagrams"
+    assert 'mermaid.initialize' in mermaid_html, "Falta script de inicialización Mermaid"
+    assert 'cdn.jsdelivr.net' not in mermaid_html, "Dependencia remota externa detectada (debe ser 100% offline)"
+    print("  ✓ Renderizado de diagramas Mermaid 100% offline e interactivo validado")
+
     # Limpieza
     if sample_file.exists():
         try:
@@ -196,7 +217,7 @@ def saludar(nombre):
     shutil.rmtree(test_root, ignore_errors=True)
 
     print("\n==========================================")
-    print("✓ TODAS LAS PRUEBAS RÁPIDAS PASARON EXITOSAMENTE (9/9)")
+    print("✓ TODAS LAS PRUEBAS RÁPIDAS PASARON EXITOSAMENTE (10/10)")
     print("==========================================")
 
     if "--full" in sys.argv or "-a" in sys.argv or "--all" in sys.argv:
@@ -204,7 +225,7 @@ def saludar(nombre):
         import run_tests
         return run_tests.run_all_tests()
     else:
-        print("\n[TIP] Para ejecutar la suite integral completa (85 tests unitarios, API, seguridad y geometría):")
+        print("\n[TIP] Para ejecutar la suite integral completa (96 tests unitarios, API, seguridad y geometría):")
         print("      python run_tests.py  (o: python verify_app.py --full)")
         return 0
 

@@ -330,7 +330,19 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             rel_name = path[len("/assets/"):]
             asset_file = (ASSETS_DIR / rel_name).resolve()
             if asset_file.exists() and ASSETS_DIR in asset_file.parents:
-                mime = "image/png" if asset_file.suffix.lower() == ".png" else "application/octet-stream"
+                suffix = asset_file.suffix.lower()
+                if suffix == ".png":
+                    mime = "image/png"
+                elif suffix == ".ico":
+                    mime = "image/x-icon"
+                elif suffix == ".js":
+                    mime = "application/javascript; charset=utf-8"
+                elif suffix == ".css":
+                    mime = "text/css; charset=utf-8"
+                elif suffix == ".svg":
+                    mime = "image/svg+xml"
+                else:
+                    mime = "application/octet-stream"
                 with open(asset_file, "rb") as f:
                     content = f.read()
                 self.send_response(200)

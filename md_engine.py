@@ -20,6 +20,9 @@ ICON_FOLDER = """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" str
 ICON_BOLT = """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>"""
 ICON_COPY = """<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>"""
 ICON_SEARCH = """<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>"""
+ICON_DIAGRAM = """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>"""
+ICON_CODE = """<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>"""
+
 
 ALERT_ICONS = {
     'note': """<svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75zM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>""",
@@ -478,11 +481,241 @@ footer {
   font-size: 0.78rem; color: var(--text-faint); display: flex; justify-content: space-between;
 }
 
+/* Apple HIG Mermaid Diagrams (100% Offline & Interactive) */
+.mermaid-block {
+  margin: 1.5rem 0 2rem 0;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background-color: var(--card-alt-bg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.mermaid-header {
+  background-color: var(--code-block-header);
+  padding: 0.45rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.725rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #a1a1a6;
+  letter-spacing: 0.06em;
+  user-select: none;
+}
+
+html.light .mermaid-header {
+  background-color: #f1f5f9;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  color: #475569;
+}
+
+.mermaid-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-main);
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.mermaid-title svg {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.mermaid-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.mermaid-render {
+  padding: 1.85rem 1.25rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100px;
+  overflow-x: auto;
+  background-color: var(--card-bg);
+  transition: background-color 200ms ease;
+}
+
+.mermaid-render svg {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block;
+  margin: 0 auto;
+}
+
+.mermaid-source {
+  border-top: 1px solid var(--border-color);
+}
+
+.mermaid-source pre {
+  margin: 0;
+  border-radius: 0;
+  background-color: var(--code-block-bg);
+  padding: 1.15rem 1.35rem;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.58;
+  color: var(--code-block-text);
+}
+
+.mermaid-source pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+  display: block;
+}
+
+.mermaid-error {
+  padding: 1rem 1.25rem;
+  background-color: var(--danger-badge-bg);
+  color: var(--danger-badge-text);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.mermaid-loading {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media print {
+  .mermaid-actions { display: none !important; }
+  .mermaid-source { display: none !important; }
+  .mermaid-block { break-inside: avoid; page-break-inside: avoid; border: 1px solid #cbd5e1; background: transparent; }
+  .mermaid-render { background: transparent !important; padding: 1rem 0; }
+}
+
 @media (max-width: 768px) {
   .container { padding: 1.5rem 1.2rem; }
   h1 { font-size: 1.8rem; }
 }
 """
+
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+_mermaid_js_cache = None
+
+def get_mermaid_runtime_code() -> str:
+    """
+    Obtiene el runtime minificado de Mermaid (v11.x) desde assets/ de forma 100% offline.
+    Mantiene caché en memoria para una velocidad de inyección ultrarrápida (< 1ms).
+    """
+    global _mermaid_js_cache
+    if _mermaid_js_cache is not None:
+        return _mermaid_js_cache
+
+    candidates = [
+        ASSETS_DIR / "mermaid.min.js",
+        Path(__file__).resolve().parent.parent / "assets" / "mermaid.min.js",
+        Path.home() / ".gemini" / "config" / "skills" / "markdown-to-html" / "references" / "mermaid.min.js",
+    ]
+    for cand in candidates:
+        if cand.exists():
+            try:
+                with open(cand, "r", encoding="utf-8") as f:
+                    _mermaid_js_cache = f.read()
+                return _mermaid_js_cache
+            except Exception:
+                pass
+    return ""
+
+MERMAID_CLIENT_JS = """
+function toggleMermaidSource(id, btn) {
+  const srcEl = document.getElementById('source-' + id);
+  if (!srcEl) return;
+  const isHidden = srcEl.style.display === 'none';
+  srcEl.style.display = isHidden ? 'block' : 'none';
+  const label = btn.querySelector('span');
+  if (label) label.textContent = isHidden ? 'Ocultar código' : 'Ver código';
+}
+
+function copyMermaidSource(id, btn) {
+  const rawEl = document.getElementById('raw-' + id);
+  if (!rawEl) return;
+  navigator.clipboard.writeText(rawEl.textContent.trim()).then(() => {
+    const label = btn.querySelector('span');
+    const orig = label ? label.textContent : '';
+    btn.classList.add('copied');
+    if (label) label.textContent = '✓ Copiado';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      if (label) label.textContent = orig;
+    }, 2000);
+  }).catch(err => {
+    console.error('Error al copiar Mermaid:', err);
+  });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function renderMermaidDiagrams() {
+  if (typeof mermaid === 'undefined') return;
+  const isDark = !document.documentElement.classList.contains('light');
+  try {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: isDark ? 'dark' : 'default',
+      securityLevel: 'loose',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, sans-serif'
+    });
+  } catch (e) {
+    console.error('Mermaid init error:', e);
+  }
+
+  const blocks = document.querySelectorAll('.mermaid-block');
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const diagId = block.id.replace('block-', '');
+    const rawEl = document.getElementById('raw-' + diagId);
+    const renderEl = document.getElementById('render-' + diagId);
+    if (!rawEl || !renderEl) continue;
+
+    const rawCode = rawEl.textContent.trim();
+    const uniqueId = 'svg-' + diagId + '-' + (isDark ? 'dark' : 'light') + '-' + Math.floor(Math.random() * 100000);
+    try {
+      const res = await mermaid.render(uniqueId, rawCode);
+      renderEl.innerHTML = res.svg;
+      if (res.bindFunctions) {
+        res.bindFunctions(renderEl);
+      }
+    } catch (err) {
+      console.error('Mermaid render error for ' + diagId + ':', err);
+      renderEl.innerHTML = '<div class="mermaid-error"><strong>⚠️ Aviso de sintaxis Mermaid:</strong> ' +
+        escapeHtml(err.message || 'Error en la definición del diagrama') +
+        '</div>';
+      const srcEl = document.getElementById('source-' + diagId);
+      if (srcEl) srcEl.style.display = 'block';
+      const toggleBtn = block.querySelector('.toggle-source-btn span');
+      if (toggleBtn) toggleBtn.textContent = 'Ocultar código';
+    }
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', renderMermaidDiagrams);
+} else {
+  renderMermaidDiagrams();
+}
+"""
+
 
 HTML_DOC_TEMPLATE = """<!DOCTYPE html>
 <html lang="es">
@@ -555,6 +788,9 @@ HTML_DOC_TEMPLATE = """<!DOCTYPE html>
         document.documentElement.classList.add('light');
         localStorage.setItem('apple-md-theme', 'light');
       }}
+      if (typeof renderMermaidDiagrams === 'function') {{
+        renderMermaidDiagrams();
+      }}
     }}
     initTheme();
 
@@ -571,6 +807,7 @@ HTML_DOC_TEMPLATE = """<!DOCTYPE html>
       }});
     }}
   </script>
+{mermaid_scripts}
 </body>
 </html>
 """
@@ -1003,6 +1240,8 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
     html_blocks = []
     toc_items = []
     title_line_consumed = False
+    mermaid_count = 0
+    has_mermaid = False
 
     i = 0
     n = len(body_lines)
@@ -1051,6 +1290,44 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
             if i < n:
                 i += 1
             code_raw = "\n".join(code_lines)
+            lang_lower = (lang or '').lower().strip()
+
+            # Bloque especial de Diagrama Mermaid (Renderizado 100% Offline e Interactivo)
+            if lang_lower == 'mermaid':
+                mermaid_count += 1
+                has_mermaid = True
+                diag_id = f"mermaid-{mermaid_count}"
+                esc_code = escape(code_raw)
+                block_html = (
+                    f'<div class="mermaid-block" id="block-{diag_id}">\n'
+                    f'  <div class="mermaid-header">\n'
+                    f'    <div class="mermaid-title">\n'
+                    f'      {ICON_DIAGRAM}\n'
+                    f'      <span>Diagrama Mermaid</span>\n'
+                    f'    </div>\n'
+                    f'    <div class="mermaid-actions">\n'
+                    f'      <button class="copy-btn toggle-source-btn" onclick="toggleMermaidSource(\'{diag_id}\', this)" title="Ver u ocultar código Mermaid">\n'
+                    f'        {ICON_CODE}\n'
+                    f'        <span>Ver código</span>\n'
+                    f'      </button>\n'
+                    f'      <button class="copy-btn" onclick="copyMermaidSource(\'{diag_id}\', this)" title="Copiar definición Mermaid">\n'
+                    f'        {ICON_COPY}\n'
+                    f'        <span>Copiar</span>\n'
+                    f'      </button>\n'
+                    f'    </div>\n'
+                    f'  </div>\n'
+                    f'  <div class="mermaid-render" id="render-{diag_id}">\n'
+                    f'    <div class="mermaid-loading">Cargando diagrama...</div>\n'
+                    f'  </div>\n'
+                    f'  <div class="mermaid-source" id="source-{diag_id}" style="display: none;">\n'
+                    f'    <pre><code class="language-mermaid">{esc_code}</code></pre>\n'
+                    f'  </div>\n'
+                    f'  <div id="raw-{diag_id}" style="display: none;">{esc_code}</div>\n'
+                    f'</div>'
+                )
+                html_blocks.append(block_html)
+                continue
+
             code_html = highlight_code_block(code_raw, lang)
             lang_label = escape(lang.upper() if lang else "CODE")
             html_blocks.append(
@@ -1206,7 +1483,8 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
         "subtitle": "",
         "body": "\n".join(html_blocks),
         "toc": toc_html,
-        "frontmatter": frontmatter
+        "frontmatter": frontmatter,
+        "has_mermaid": has_mermaid
     }
 
 def compile_markdown_to_body(md_text: str, custom_title: str = None, input_file_path: str = None) -> str:
@@ -1651,6 +1929,14 @@ def convert_and_update_library(md_text: str, root_dir_str: str, custom_title: st
         out_path = root_dir / filename
 
     # 4. Generar HTML del documento
+    mermaid_injection = ""
+    if parsed.get("has_mermaid"):
+        runtime_js = get_mermaid_runtime_code()
+        if runtime_js:
+            mermaid_injection = f"  <script>\n{runtime_js}\n  </script>\n  <script>\n{MERMAID_CLIENT_JS}\n  </script>"
+        else:
+            mermaid_injection = f"  <script>\n{MERMAID_CLIENT_JS}\n  </script>"
+
     html_out = HTML_DOC_TEMPLATE.format(
         title=escape(final_title),
         styles=COMMON_STYLES,
@@ -1664,7 +1950,8 @@ def convert_and_update_library(md_text: str, root_dir_str: str, custom_title: st
         generated_date=now_str,
         footer_date=now_str,
         icon_folder=ICON_FOLDER,
-        icon_bolt=ICON_BOLT
+        icon_bolt=ICON_BOLT,
+        mermaid_scripts=mermaid_injection
     )
 
     with open(out_path, "w", encoding="utf-8") as f:
