@@ -357,6 +357,18 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             self.send_json(config)
             return
 
+        if path == "/api/logs":
+            log_file = APP_DIR / "debug_log.txt"
+            lines = []
+            if log_file.exists():
+                try:
+                    with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+                        lines = [l.rstrip() for l in f.readlines()[-80:]]
+                except Exception:
+                    pass
+            self.send_json({"logs": lines})
+            return
+
         self.send_response(404)
         self.end_headers()
 
@@ -385,6 +397,19 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             delay = float(payload.get("delay", 4.0)) if isinstance(payload.get("delay"), (int, float)) else 4.0
             schedule_shutdown(delay=delay)
             self.send_json({"status": "scheduled", "delay": delay})
+            return
+
+        if path == "/api/open-logs":
+            log_file = APP_DIR / "debug_log.txt"
+            try:
+                if not log_file.exists():
+                    log_file.touch()
+                os.startfile(str(log_file.resolve()))
+                log_debug("POST /api/open-logs: archivo debug_log.txt abierto en el editor del sistema")
+                self.send_json({"status": "opened"})
+            except Exception as e:
+                log_debug(f"Aviso abriendo logs: {e}")
+                self.send_json({"error": str(e)}, status=500)
             return
 
         if path == "/api/adjust-window":
@@ -430,6 +455,7 @@ class AppRequestHandler(BaseHTTPRequestHandler):
                 chosen_p.mkdir(parents=True, exist_ok=True)
                 config["root_dir"] = str(chosen_p)
                 save_config(config)
+                log_debug(f"POST /api/browse-folder: nueva ruta raíz '{chosen_p}'")
                 self.send_json({"chosen_path": str(chosen_p)})
             else:
                 self.send_json({"chosen_path": None})
@@ -439,6 +465,7 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             chosen = choose_file_native()
             if chosen:
                 chosen_p = Path(chosen).resolve()
+                log_debug(f"POST /api/browse-file: archivo seleccionado '{chosen_p.name}'")
                 self.send_json({
                     "file_path": str(chosen_p),
                     "filename": chosen_p.name
@@ -448,6 +475,7 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/convert":
+            t0 = time.time()
             config = get_or_create_config()
             root_dir = config.get("root_dir", str(DEFAULT_ROOT_DIR))
             custom_title = payload.get("custom_title", "").strip() or None
@@ -459,13 +487,18 @@ class AppRequestHandler(BaseHTTPRequestHandler):
                 try:
                     with open(input_file, "r", encoding="utf-8-sig", errors="replace") as f:
                         md_content = f.read()
+                    log_debug(f"POST /api/convert: archivo '{Path(input_file).name}' ({len(md_content)} caracteres)")
                 except Exception as e:
+                    log_debug(f"ERROR leyendo archivo {input_file}: {e}")
                     self.send_json({"error": f"Error leyendo el archivo: {e}"}, status=400)
                     return
             else:
                 md_content = payload.get("text", "")
+                sample = md_content[:50].replace('\n', ' ') if md_content else ''
+                log_debug(f"POST /api/convert: texto ({len(md_content)} caracteres) - '{sample}'")
 
             if not md_content.strip():
+                log_debug("Aviso en /api/convert: texto vacío recibido")
                 self.send_json({"error": "No se recibió texto Markdown para convertir."}, status=400)
                 return
 
@@ -478,14 +511,20 @@ class AppRequestHandler(BaseHTTPRequestHandler):
                 )
                 add_recent_conversion(res)
 
+                elapsed_ms = (time.time() - t0) * 1000
+                log_debug(f"Conversión exitosa en {elapsed_ms:.1f}ms: '{res.get('title')}' -> {res.get('filename')}")
+
                 if auto_open:
                     try:
                         webbrowser.open(res["file_url"])
                     except Exception as we:
-                        print(f"Aviso: Error abriendo navegador: {we}")
+                        log_debug(f"Aviso: Error abriendo navegador: {we}")
 
                 self.send_json(res)
             except Exception as e:
+                import traceback
+                err_tb = traceback.format_exc()
+                log_debug(f"ERROR CRÍTICO en conversión tras {(time.time() - t0)*1000:.1f}ms: {e}\n{err_tb}")
                 self.send_json({"error": f"Error en la conversión: {e}"}, status=500)
             return
 
@@ -798,10 +837,26 @@ def launch_desktop_window(port: int):
     log_debug(f"Abriendo navegador predeterminado: {url}")
     webbrowser.open(url)
 
+_log_lock = threading.Lock()
+
 def log_debug(msg: str):
+    """Escribe registros defensivos en debug_log.txt de forma segura entre hilos con rotación."""
     log_file = APP_DIR / "debug_log.txt"
-    with open(log_file, "a", encoding="utf-8") as f:
-        f.write(f"[{datetime.now().strftime('%H:%M:%S.%f')}] {msg}\n")
+    try:
+        with _log_lock:
+            if log_file.exists() and log_file.stat().st_size > 1_000_000:
+                try:
+                    with open(log_file, "r", encoding="utf-8", errors="ignore") as rf:
+                        rf.seek(max(0, log_file.stat().st_size - 250_000))
+                        tail = rf.read()
+                    with open(log_file, "w", encoding="utf-8") as wf:
+                        wf.write(f"--- [REGISTRO ROTADO] ---\n{tail}")
+                except Exception:
+                    pass
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] {msg}\n")
+    except Exception:
+        pass
 
 def main():
     global client_connected, last_heartbeat

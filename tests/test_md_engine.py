@@ -306,6 +306,41 @@ class TestTables(unittest.TestCase):
         self.assertIn('text-align: center;', html)
         self.assertIn('text-align: right;', html)
 
+    def test_table_without_separator_or_gherkin(self):
+        """Test tables without explicit :--- separator line (e.g. Gherkin data tables)."""
+        md = """
+| Usuario | Contraseña | Rol |
+| admin | secret123 | superuser |
+| guest | guestpass | viewer |
+"""
+        html = md_engine.compile_markdown_to_body(md)
+        self.assertIn('<div class="table-container">', html)
+        self.assertIn('<table>', html)
+        self.assertIn('>Usuario</th>', html)
+        self.assertIn('>admin</td>', html)
+        self.assertIn('>superuser</td>', html)
+
+    def test_single_line_pipe_and_math_pipe(self):
+        """Test single-line pipe and mathematical pipes do not cause infinite loops and render as text."""
+        md = """# Título de Prueba
+Este es un texto con opción A | opción B.
+Fórmula: |x| < 10.
+| sólo una línea |"""
+        html = md_engine.compile_markdown_to_body(md)
+        self.assertIn('opción A | opción B', html)
+        self.assertIn('|x| < 10', html)
+        self.assertIn('| sólo una línea |', html)
+
+    def test_indented_blockquote_and_hashtag(self):
+        """Test indented blockquotes and hashtags do not cause infinite loops."""
+        md = """  > Cita sangrada con espacios
+#hashtag sin espacio
+Texto normal."""
+        html = md_engine.compile_markdown_to_body(md)
+        self.assertIn('<blockquote><p>Cita sangrada con espacios</p></blockquote>', html)
+        self.assertIn('#hashtag sin espacio', html)
+
+
 
 class TestListHierarchy(unittest.TestCase):
     """Test ordered, unordered, nested, and checklist hierarchy."""
