@@ -4,3 +4,4 @@ __pycache__/
 test_output_library/
 debug_log.txt
 tmp/
+config.json

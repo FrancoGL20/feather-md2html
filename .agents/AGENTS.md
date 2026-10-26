@@ -23,7 +23,8 @@ MarkdownToHTML_App/
 │
 ├── app.py                     # Servidor HTTP local, API REST y orquestador de ventana nativa
 ├── md_engine.py               # Motor autónomo de compilación Markdown a HTML Apple Design
-├── config.json                # Configuración persistente (directorio raíz, auto-abrir, historial)
+├── config.template.json       # Plantilla limpia rastreada en Git para inicialización
+├── config.json                # Configuración persistente local (en .gitignore, aislada de Git)
 ├── AGENTS.md                  # Especificación técnica exhaustiva para agentes y desarrolladores
 ├── README.md                  # Guía de usuario y portabilidad para humanos
 ├── run_tests.py               # Ejecutor maestro de suite integral (79 tests unitarios/API/seguridad)
@@ -417,5 +418,5 @@ El desarrollo y mantenimiento continuo de la aplicación se rige por el protocol
 1. **Ramas Principales:** `master` (producción y tags SemVer) y `develop` (integración continua).
 2. **Ramas de Trabajo:** `feature/*`, `bugfix/*`, `release/*`, `hotfix/*`, `test/*`.
 3. **Conventional Commits:** `<tipo>(<alcance>): <descripción>` con tipos estandarizados (`feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `merge`).
-4. **Ciclo de Desarrollo Obligatorio (7 Pasos):** Inspección limpia -> Creación de rama de trabajo -> TDD y Zero-Bloatware -> Validación completa con 100% de éxito en tests -> Commits semánticos atómicos -> Integración `merge --no-ff` a `develop` -> Limpieza de rama integrada.
+4. **Ciclo de Desarrollo Obligatorio (8 Fases):** Inspección limpia -> Creación de rama de trabajo -> TDD y Zero-Bloatware -> Validación completa con 100% de éxito en tests -> Commits semánticos atómicos -> Integración `merge --no-ff` a `develop` -> Limpieza de rama integrada -> **Fase 8: Retrospectiva, Purga de Temporales en `tmp/` y Auto-Mejora Continua** (especificada en [.agents/rules/closing_protocol.md](file:///c:/General/MarkdownToHTML_App/.agents/rules/closing_protocol.md)).
 

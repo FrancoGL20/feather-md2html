@@ -47,3 +47,7 @@ Todo agente que interactúe con este repositorio debe clasificar el requerimient
    - Limpieza de rama integrada: `git branch -d <rama>`.
 7. **Fase 7: Cierre y Demostración Ejecutiva:**
    - Reporte conciso con enlaces de archivo (`file:///`), resultados de pruebas y guía de validación.
+8. **Fase 8: Retrospectiva y Auto-Mejora Continua (Obligatoria):**
+   - Seguir estrictamente el protocolo de [closing_protocol.md](file:///c:/General/MarkdownToHTML_App/.agents/rules/closing_protocol.md).
+   - Limpieza de temporales en `tmp/` y exclusión de `config.json`.
+   - Analizar oportunidades de mejora tras la tarea y proponerlas al usuario para su aprobación antes de incorporarlas.

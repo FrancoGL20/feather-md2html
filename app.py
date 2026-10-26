@@ -35,6 +35,7 @@ APP_DIR = Path(__file__).resolve().parent
 UI_DIR = APP_DIR / "ui"
 ASSETS_DIR = APP_DIR / "assets"
 CONFIG_FILE = APP_DIR / "config.json"
+CONFIG_TEMPLATE_FILE = APP_DIR / "config.template.json"
 
 DEFAULT_ROOT_DIR = Path.home() / "Downloads" / "Markdown_HTML_Library"
 
@@ -61,6 +62,14 @@ def get_or_create_config() -> dict:
         "auto_open": True,
         "recent_conversions": []
     }
+    if not CONFIG_FILE.exists() and CONFIG_TEMPLATE_FILE.exists():
+        try:
+            with open(CONFIG_TEMPLATE_FILE, "r", encoding="utf-8") as f:
+                template_data = json.load(f)
+                config.update(template_data)
+        except Exception:
+            pass
+
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
