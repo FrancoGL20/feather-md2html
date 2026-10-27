@@ -291,6 +291,7 @@ En Windows, al ejecutar scripts mediante `pythonw.exe` (modo ventana sin consola
 | `/api/adjust-window` | `POST` | Ajusta y centra nativamente el tamaño de la ventana según la resolución de la pantalla | `{ screen_w?: number, screen_h?: number }` | `{ success: bool, target_w, target_h, pos_x, pos_y }` |
 | `/api/heartbeat` | `POST` | Refresca el temporizador del watchdog | Ninguno | `{ status: "alive" }` |
 | `/api/shutdown` | `POST` | Notifica cierre inminente de la ventana del navegador | `{ delay?: number, reason?: string }` | `{ status: "scheduled", delay: number }` |
+| `/api/clipboard` | `GET`/`POST` | Obtiene el texto plano/Markdown del portapapeles de Windows vía Win32 API (cero avisos de permisos) | Ninguno | `{ text: string, length: number }` |
 | `/api/logs` | `GET` | Obtiene las líneas más recientes del archivo de registro `debug_log.txt` | Ninguno | `{ logs: string[] }` |
 | `/api/open-logs` | `POST` | Abre el archivo `debug_log.txt` en el Bloc de notas o editor nativo de Windows | Ninguno | `{ status: "opened" }` |
 
@@ -305,6 +306,19 @@ La aplicación detecta dinámicamente la resolución y escala de la pantalla act
 3. **Control Nativo Win32 contra Cache de Estado Maximizado:**
    - Para prevenir que Microsoft Edge recuerde un estado maximizado previo, un hilo en segundo plano localiza la ventana de la app (`find_and_adjust_app_window`), invoca `ShowWindow(hwnd, SW_RESTORE)` y aplica las coordenadas exactas con `SetWindowPos`.
    - La interfaz cliente (`ui/index.html`) reporta sus métricas reales vía `POST /api/adjust-window` al inicializar para sincronizar entornos multimonitor.
+
+### 5.5. Arquitectura de Portapapeles Nativo y Persistencia de Origen (Zero-Prompts)
+
+Para erradicar definitivamente los diálogos invasivos de Chromium (*"http://127.0.0.1:... wants to See text and images copied to the clipboard"*):
+1. **Lectura Directa a Nivel Sistema Operativo:**
+   - En lugar de invocar `navigator.clipboard.readText()` (que dispara el aviso de seguridad por origen en Chromium), la aplicación consulta `/api/clipboard`.
+   - El backend en `app.py` utiliza la API nativa de Win32 (`OpenClipboard`, `GetClipboardData` con `CF_UNICODETEXT`, `GlobalLock` de 64 bits con `wintypes`).
+   - Latencia inferior a 1 ms, sin paquetes `pip` externos (Zero-Bloatware), y con reintento defensivo si otra app bloquea transitoriamente el portapapeles.
+   - En caso de previsualización estática fuera del servidor, la interfaz cuenta con fallback automático a `navigator.clipboard.readText()`.
+2. **Puerto Preferido y Estabilidad de Origen (`DEFAULT_PORT = 51870`):**
+   - La función `get_server_port()` intenta enlazarse primeramente al puerto `51870` para mantener constante el origen web (`http://127.0.0.1:51870`).
+   - Esto preserva de forma permanente los datos de perfil, preferencias y caché en Microsoft Edge / Chrome.
+   - Si dicho puerto estuviera ocupado por otra instancia en ejecución, la app recurre de inmediato a un puerto libre efímero dinámico sin interrumpir la operación.
 
 ---
 
