@@ -225,7 +225,7 @@ graph TD
         import run_tests
         return run_tests.run_all_tests()
     else:
-        print("\n[TIP] Para ejecutar la suite integral completa (96 tests unitarios, API, seguridad y geometría):")
+        print("\n[TIP] Para ejecutar la suite integral completa (116 tests unitarios, API, seguridad y geometría):")
         print("      python run_tests.py  (o: python verify_app.py --full)")
         return 0
 
