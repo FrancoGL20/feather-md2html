@@ -38,6 +38,7 @@ CONFIG_FILE = APP_DIR / "config.json"
 CONFIG_TEMPLATE_FILE = APP_DIR / "config.template.json"
 
 DEFAULT_ROOT_DIR = Path.home() / "Downloads" / "Markdown_HTML_Library"
+DEFAULT_PORT = 51870
 
 # Estado global de supervisión y ciclo de vida
 last_heartbeat = time.time()
@@ -374,6 +375,11 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             self.send_json({"logs": lines})
             return
 
+        if path == "/api/clipboard":
+            text = get_clipboard_text()
+            self.send_json({"text": text, "length": len(text)})
+            return
+
         self.send_response(404)
         self.end_headers()
 
@@ -396,6 +402,11 @@ class AppRequestHandler(BaseHTTPRequestHandler):
 
         if path == "/api/heartbeat":
             self.send_json({"status": "alive"})
+            return
+
+        if path == "/api/clipboard":
+            text = get_clipboard_text()
+            self.send_json({"text": text, "length": len(text)})
             return
 
         if path == "/api/shutdown":
@@ -695,6 +706,71 @@ def find_free_port() -> int:
         s.bind(('127.0.0.1', 0))
         return s.getsockname()[1]
 
+def get_server_port(preferred_port: int = DEFAULT_PORT) -> int:
+    """
+    Intenta utilizar un puerto fijo preferido (51870) para mantener constante el origen
+    (http://127.0.0.1:51870) en Microsoft Edge / Chromium. Si dicho puerto ya está ocupado
+    por otra instancia o servicio, encuentra un puerto libre efímero dinámicamente.
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(('127.0.0.1', preferred_port))
+            return preferred_port
+    except OSError:
+        pass
+
+    return find_free_port()
+
+def get_clipboard_text() -> str:
+    """
+    Obtiene el texto del portapapeles nativo de Windows vía Win32 API.
+    Zero-bloatware, sin dependencias externas y sin disparar alertas de permisos del navegador.
+    """
+    try:
+        import ctypes
+        from ctypes import wintypes
+        u32 = ctypes.windll.user32
+        k32 = ctypes.windll.kernel32
+        
+        u32.OpenClipboard.argtypes = [wintypes.HWND]
+        u32.OpenClipboard.restype = wintypes.BOOL
+        u32.GetClipboardData.argtypes = [wintypes.UINT]
+        u32.GetClipboardData.restype = wintypes.HANDLE
+        u32.CloseClipboard.argtypes = []
+        u32.CloseClipboard.restype = wintypes.BOOL
+        
+        k32.GlobalLock.argtypes = [wintypes.HGLOBAL]
+        k32.GlobalLock.restype = ctypes.c_void_p
+        k32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
+        k32.GlobalUnlock.restype = wintypes.BOOL
+        
+        CF_UNICODETEXT = 13
+        
+        for _ in range(5):
+            if u32.OpenClipboard(None):
+                break
+            time.sleep(0.05)
+        else:
+            return ""
+            
+        try:
+            handle = u32.GetClipboardData(CF_UNICODETEXT)
+            if not handle:
+                return ""
+            ptr = k32.GlobalLock(handle)
+            if not ptr:
+                return ""
+            try:
+                return ctypes.c_wchar_p(ptr).value or ""
+            finally:
+                k32.GlobalUnlock(handle)
+        finally:
+            u32.CloseClipboard()
+    except Exception as e:
+        log_debug(f"Aviso al leer portapapeles nativo: {e}")
+        return ""
+
 def get_dynamic_window_geometry(screen_w: int = None, screen_h: int = None):
     """Calcula las dimensiones ideales de la ventana según la resolución de la pantalla."""
     if not screen_w or not screen_h:
@@ -870,7 +946,7 @@ def main():
     log_debug("--- Inicio de main() ---")
     get_or_create_config()
     log_debug("Configuración obtenida/creada")
-    port = find_free_port()
+    port = get_server_port()
     log_debug(f"Puerto asignado: {port}")
     last_heartbeat = time.time()
     

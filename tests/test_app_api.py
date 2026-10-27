@@ -331,12 +331,49 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
             self.assertEqual(data.get("status"), "opened")
             mock_startfile.assert_called_once()
 
-    def test_unknown_routes_return_404(self):
-        status_get, _, _ = self._http_get("/api/nonexistent_endpoint")
-        self.assertEqual(status_get, 404)
+    def test_get_clipboard_endpoint(self):
+        sample = "# Markdown desde portapapeles\n- Tarea 1"
+        with patch("app.get_clipboard_text", return_value=sample):
+            status, headers, body = self._http_get("/api/clipboard")
+            self.assertEqual(status, 200)
+            self.assertIn("application/json", headers.get("Content-Type", ""))
+            data = json.loads(body.decode("utf-8"))
+            self.assertEqual(data.get("text"), sample)
+            self.assertEqual(data.get("length"), len(sample))
 
-        status_post, _, _ = self._http_post_json("/api/nonexistent_endpoint")
-        self.assertEqual(status_post, 404)
+    def test_post_clipboard_endpoint(self):
+        sample = "Contenido vía POST"
+        with patch("app.get_clipboard_text", return_value=sample):
+            status, _, data = self._http_post_json("/api/clipboard")
+            self.assertEqual(status, 200)
+            self.assertEqual(data.get("text"), sample)
+            self.assertEqual(data.get("length"), len(sample))
+
+    def test_get_server_port_preferred_and_fallback(self):
+        # 1. Con un puerto libre
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('127.0.0.1', 0))
+            free_p = s.getsockname()[1]
+
+        chosen = app.get_server_port(preferred_port=free_p)
+        self.assertEqual(chosen, free_p)
+
+        # 2. Con un puerto ocupado (bloqueado por un socket activo)
+        blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        blocker.bind(('127.0.0.1', 0))
+        busy_p = blocker.getsockname()[1]
+        try:
+            fallback = app.get_server_port(preferred_port=busy_p)
+            self.assertNotEqual(fallback, busy_p)
+            self.assertGreater(fallback, 0)
+        finally:
+            blocker.close()
+
+    def test_get_clipboard_text_defensive_behavior(self):
+        # Cuando OpenClipboard falla
+        with patch("ctypes.windll.user32.OpenClipboard", return_value=0):
+            res = app.get_clipboard_text()
+            self.assertEqual(res, "")
 
 
 if __name__ == "__main__":

@@ -1205,15 +1205,39 @@ graph TD
       document.getElementById('dropzone').style.display = 'flex';
     }
 
+    async function getClipboardText() {
+      // 1. Intento prioritario: lectura nativa vía backend (cero diálogos de permisos en Edge/Chrome)
+      try {
+        const res = await fetch('/api/clipboard');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data.text === 'string') {
+            return data.text;
+          }
+        }
+      } catch (err) {
+        console.warn('Backend clipboard endpoint no disponible, recurriendo a Web API:', err);
+      }
+
+      // 2. Fallback estándar a navigator.clipboard si el backend no responde
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        return await navigator.clipboard.readText();
+      }
+
+      throw new Error('No se pudo acceder al portapapeles');
+    }
+
     // Paste & Clear Textarea
     async function pasteClipboard() {
       try {
-        const text = await navigator.clipboard.readText();
-        if (text) {
+        const text = await getClipboardText();
+        if (text && text.trim()) {
           const ta = document.getElementById('markdownInput');
           ta.value = text;
           updateCounters();
           showToast('Texto pegado del portapapeles');
+        } else {
+          showToast('⚠️ El portapapeles está vacío o no contiene texto');
         }
       } catch (e) {
         showToast('Usa Ctrl + V para pegar');
@@ -1236,10 +1260,10 @@ graph TD
     async function pasteAndConvert() {
       let text = '';
       try {
-        text = await navigator.clipboard.readText();
+        text = await getClipboardText();
       } catch (err) {
         console.error('Error al leer portapapeles:', err);
-        showToast('⚠️ Permiso del portapapeles denegado. Usa Ctrl+V y presiona Convertir');
+        showToast('⚠️ No se pudo leer el portapapeles. Usa Ctrl+V y presiona Convertir');
         return;
       }
 
