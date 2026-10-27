@@ -30,6 +30,7 @@ if sys.stdout and getattr(sys.stdout, 'encoding', None):
 
 # Importar motor de compilación
 import md_engine
+import tray_manager
 
 APP_DIR = Path(__file__).resolve().parent
 UI_DIR = APP_DIR / "ui"
@@ -47,6 +48,121 @@ client_connected = False
 tracked_app_hwnds = set()
 shutdown_scheduled_time = None
 initial_window_detected = False
+tray_instance = None
+current_server_port = DEFAULT_PORT
+app_single_instance_mutex = None
+SINGLE_INSTANCE_MUTEX_NAME = "Local\\MarkdownToHTML_App_SingleInstance_Mutex"
+
+def acquire_single_instance_lock():
+    """
+    Verifica si ya existe otra instancia de la aplicación ejecutándose en Windows.
+    Si ya existe, solicita a la instancia existente que despierte y traiga al frente su ventana visual,
+    y retorna None para que el proceso duplicado termine inmediatamente sin crear iconos extras.
+    """
+    try:
+        import ctypes
+        from ctypes import wintypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
+        kernel32.CreateMutexW.restype = wintypes.HANDLE
+        ERROR_ALREADY_EXISTS = 183
+
+        mutex = kernel32.CreateMutexW(None, True, SINGLE_INSTANCE_MUTEX_NAME)
+        last_err = kernel32.GetLastError()
+        if last_err == ERROR_ALREADY_EXISTS:
+            log_debug("Instancia previa detectada mediante Named Mutex. Despertando app existente...")
+            # Notificar a la instancia existente para que abra o restaure la ventana
+            try:
+                import urllib.request
+                req = urllib.request.Request(
+                    f"http://127.0.0.1:{DEFAULT_PORT}/api/open-app",
+                    data=b"{}",
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req, timeout=1.5) as response:
+                    pass
+            except Exception as e:
+                log_debug(f"Aviso despertando instancia previa por HTTP: {e}")
+            if mutex:
+                kernel32.CloseHandle(mutex)
+            return None
+        return mutex
+    except Exception as e:
+        log_debug(f"Aviso en acquire_single_instance_lock: {e}")
+        return None
+
+def open_app_window():
+    """
+    Restaura y trae al frente la ventana de la app si ya existe en el SO,
+    o lanza una nueva instancia de la ventana contra el servidor existente.
+    """
+    global current_server_port, tracked_app_hwnds
+    log_debug("open_app_window() invocado")
+    try:
+        import ctypes
+        user32 = ctypes.windll.user32
+        SW_RESTORE = 9
+
+        # 1. Comprobar HWNDs previamente rastreados
+        alive = [h for h in tracked_app_hwnds if user32.IsWindow(h)]
+        if alive:
+            for hwnd in alive:
+                user32.ShowWindow(hwnd, SW_RESTORE)
+                user32.SetForegroundWindow(hwnd)
+            log_debug(f"Ventana existente restaurada y traída al frente (HWNDs: {alive})")
+            return True
+
+        # 2. Descubrir ventanas activas en el SO
+        found = find_app_hwnds()
+        if found:
+            tracked_app_hwnds.update(found)
+            for hwnd in found:
+                user32.ShowWindow(hwnd, SW_RESTORE)
+                user32.SetForegroundWindow(hwnd)
+            log_debug(f"Ventanas descubiertas y traídas al frente: {found}")
+            return True
+
+        # 3. Si no existe ventana abierta de Edge, volver a lanzarla contra el servidor existente
+        log_debug(f"No se detectó ventana viva. Relanzando ventana de escritorio en puerto {current_server_port}...")
+        launch_desktop_window(current_server_port)
+        return True
+    except Exception as e:
+        log_debug(f"Aviso en open_app_window: {e}")
+        try:
+            launch_desktop_window(current_server_port)
+        except Exception:
+            pass
+        return False
+
+def open_documents_folder():
+    """Abre la carpeta raíz de documentos en el Explorador de Windows."""
+    cfg = get_or_create_config()
+    r_dir = cfg.get("root_dir", "")
+    if r_dir and Path(r_dir).exists():
+        try:
+            os.startfile(r_dir)
+        except Exception as e:
+            log_debug(f"Error abriendo carpeta desde tray: {e}")
+
+def open_library_index():
+    """Abre el catálogo index.html de la biblioteca en el navegador."""
+    cfg = get_or_create_config()
+    idx_file = Path(cfg.get("root_dir", "")) / "index.html"
+    if idx_file.exists():
+        webbrowser.open(f"file:///{idx_file.resolve().as_posix()}")
+    else:
+        open_documents_folder()
+
+def quit_app_fully():
+    """Cierra la aplicación por completo, deteniendo el tray y el servidor HTTP."""
+    global tray_instance
+    log_debug("quit_app_fully() invocado: cerrando tray y finalizando servidor...")
+    if tray_instance:
+        try:
+            tray_instance.stop()
+        except Exception as e:
+            log_debug(f"Aviso deteniendo tray en quit_app_fully: {e}")
+    schedule_shutdown(0.1)
 
 def schedule_shutdown(delay: float = 4.0):
     """Programa un apagado diferido para permitir que reinicios de página o eventos cancelen el cierre."""
@@ -135,6 +251,9 @@ def get_or_create_config() -> dict:
     config = {
         "root_dir": str(DEFAULT_ROOT_DIR),
         "auto_open": True,
+        "system_tray_enabled": True,
+        "close_to_tray": True,
+        "first_tray_notification_shown": False,
         "recent_conversions": []
     }
     if not CONFIG_FILE.exists() and CONFIG_TEMPLATE_FILE.exists():
@@ -409,7 +528,35 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             self.send_json({"text": text, "length": len(text)})
             return
 
+        if path == "/api/open-app":
+            open_app_window()
+            self.send_json({"status": "opened"})
+            return
+
+        if path == "/api/quit-app":
+            quit_app_fully()
+            self.send_json({"status": "quitting"})
+            return
+
         if path == "/api/shutdown":
+            reason = payload.get("reason", "")
+            force = payload.get("force", False)
+            cfg = get_or_create_config()
+            if reason == "window_unload" and not force and cfg.get("system_tray_enabled", True) and cfg.get("close_to_tray", True):
+                log_debug("Petición /api/shutdown con reason='window_unload'. Modo bandeja activo: preservando servidor.")
+                if tray_instance and not cfg.get("first_tray_notification_shown", False):
+                    try:
+                        tray_instance.show_balloon(
+                            title="Markdown to HTML",
+                            message="La aplicación sigue activa en la bandeja del sistema. Haz clic en el icono para abrirla."
+                        )
+                    except Exception:
+                        pass
+                    cfg["first_tray_notification_shown"] = True
+                    save_config(cfg)
+                self.send_json({"status": "tray_preserved"})
+                return
+
             delay = float(payload.get("delay", 4.0)) if isinstance(payload.get("delay"), (int, float)) else 4.0
             schedule_shutdown(delay=delay)
             self.send_json({"status": "scheduled", "delay": delay})
@@ -459,6 +606,10 @@ class AppRequestHandler(BaseHTTPRequestHandler):
                     return
             if "auto_open" in payload:
                 config["auto_open"] = bool(payload["auto_open"])
+            if "system_tray_enabled" in payload:
+                config["system_tray_enabled"] = bool(payload["system_tray_enabled"])
+            if "close_to_tray" in payload:
+                config["close_to_tray"] = bool(payload["close_to_tray"])
             save_config(config)
             self.send_json(config)
             return
@@ -680,7 +831,7 @@ def watchdog_thread(server: HTTPServer):
             cancel_scheduled_shutdown()
             continue
 
-        # Caso 1: Señal explícita de apagado recibida (/api/shutdown via beacon al cerrar la ventana)
+        # Caso 1: Señal explícita de apagado recibida (/api/shutdown via beacon o /api/quit-app)
         if shutdown_scheduled_time is not None:
             if now >= shutdown_scheduled_time:
                 log_debug("Apagado ordenado ejecutado tras recibir señal de cierre.")
@@ -697,6 +848,11 @@ def watchdog_thread(server: HTTPServer):
                 last_heartbeat = now
                 continue
             else:
+                cfg = get_or_create_config()
+                if cfg.get("system_tray_enabled", True) and cfg.get("close_to_tray", True):
+                    # En modo bandeja, permanecer en reposo sin apagar el servidor
+                    time.sleep(2)
+                    continue
                 log_debug("Inactividad prolongada sin latidos ni ventana abierta (180s). Apagando servidor...")
                 server.shutdown()
                 break
@@ -942,11 +1098,19 @@ def log_debug(msg: str):
         pass
 
 def main():
-    global client_connected, last_heartbeat
+    global client_connected, last_heartbeat, current_server_port, tray_instance, app_single_instance_mutex
     log_debug("--- Inicio de main() ---")
-    get_or_create_config()
+
+    # 1. Candado de instancia única
+    app_single_instance_mutex = acquire_single_instance_lock()
+    if app_single_instance_mutex is None:
+        log_debug("Proceso secundario finalizado: instancia primaria ya activa.")
+        sys.exit(0)
+
+    cfg = get_or_create_config()
     log_debug("Configuración obtenida/creada")
     port = get_server_port()
+    current_server_port = port
     log_debug(f"Puerto asignado: {port}")
     last_heartbeat = time.time()
     
@@ -956,6 +1120,24 @@ def main():
     t_watchdog = threading.Thread(target=watchdog_thread, args=(server,), daemon=True)
     t_watchdog.start()
     log_debug("Watchdog iniciado en hilo daemon")
+
+    # 2. Inicializar System Tray si está habilitado
+    if cfg.get("system_tray_enabled", True):
+        try:
+            icon_path = ASSETS_DIR / "app_icon.ico"
+            tray_instance = tray_manager.TrayManager(
+                icon_path=icon_path,
+                tooltip="Markdown to HTML — Desktop App",
+                on_open_app=open_app_window,
+                on_open_folder=open_documents_folder,
+                on_open_index=open_library_index,
+                on_quit=quit_app_fully,
+                log_callback=log_debug
+            )
+            tray_instance.start()
+            log_debug("TrayManager iniciado en hilo daemon")
+        except Exception as e:
+            log_debug(f"Aviso al iniciar TrayManager: {e}")
 
     log_debug(f"Llamando a launch_desktop_window({port})...")
     launch_desktop_window(port)
@@ -968,7 +1150,18 @@ def main():
     except Exception as e:
         log_debug(f"Excepción en serve_forever: {e}")
     finally:
-        log_debug("Bloque finally de main(): cerrando servidor")
+        log_debug("Bloque finally de main(): cerrando servidor y tray")
+        if tray_instance:
+            try:
+                tray_instance.stop()
+            except Exception:
+                pass
+        if app_single_instance_mutex:
+            try:
+                import ctypes
+                ctypes.windll.kernel32.CloseHandle(app_single_instance_mutex)
+            except Exception:
+                pass
         server.server_close()
 
 if __name__ == "__main__":

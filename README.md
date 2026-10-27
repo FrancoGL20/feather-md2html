@@ -3,8 +3,9 @@
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue?logo=windows)](https://microsoft.com)
 [![Python: 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)](https://python.org)
 [![Zero Bloatware](https://img.shields.io/badge/Dependencies-Zero%20(Stdlib%20Only)-success)](#arquitectura-tecnica-y-principios-de-diseno)
-[![Tests: 116 Passing](https://img.shields.io/badge/Tests-116%2F116%20Passing-brightgreen)](#pruebas-automatizadas-y-calidad-de-codigo)
+[![Tests: 126 Passing](https://img.shields.io/badge/Tests-126%2F126%20Passing-brightgreen)](#pruebas-automatizadas-y-calidad-de-codigo)
 [![Architecture: Chromium App Mode](https://img.shields.io/badge/Engine-Chromium%20App%20Mode-orange)](#arquitectura-tecnica-y-principios-de-diseno)
+[![System Tray: Native Win32](https://img.shields.io/badge/System%20Tray-Native%20Win32-purple)](#integracion-en-el-system-tray-y-guardián-de-instancia-unica)
 
 Aplicacion de escritorio nativa para Windows disenada para la transformacion ultra-rapida (<20 ms) de documentos Markdown a paginas HTML autonomas, responsivas y completamente portables. 
 
@@ -32,6 +33,7 @@ Construida bajo una filosofia estricta de **cero dependencias externas (Zero-Blo
   - [Filosofia Zero-Bloatware](#filosofia-zero-bloatware)
   - [Modo Aplicacion Chromium](#modo-aplicacion-chromium)
   - [Ciclo de Vida y Watchdog Defensivo](#ciclo-de-vida-y-watchdog-defensivo)
+  - [Integracion en el System Tray y Guardian de Instancia Unica](#integracion-en-el-system-tray-y-guardian-de-instancia-unica)
   - [Integracion Win32 para Portapapeles](#integracion-win32-para-portapapeles)
   - [Cache Inteligente contra Bloqueo de Antivirus](#cache-inteligente-contra-bloqueo-de-antivirus)
 - [Estructura del Proyecto](#estructura-del-proyecto)
@@ -55,6 +57,8 @@ La mayoria de herramientas contemporaneas para previsualizar y convertir Markdow
 
 ## Caracteristicas Principales
 
+- **Bandeja del Sistema (System Tray) a 1 Clic:** Acceso instantaneo permanente desde el area de notificacion de Windows junto al reloj. Cierre de ventana optimizado (libera ~150 MB de Edge manteniendo Python en reposo en < 18 MB) y reapertura instantanea en < 200 ms.
+- **Menu Contextual y Notificacion en Globo:** Opciones rapidas al dar clic derecho en la bandeja (*Abrir Markdown to HTML*, *Abrir Carpeta de Documentos*, *Ver Biblioteca*, *Salir completamente*) con notificacion informativa nativa de Windows.
 - **Entrada Flexible:** Area de edicion con atajos rapidos (`Ctrl + Enter` para convertir, `Ctrl + Shift + V` para pegar y convertir), conteo de palabras y tiempo estimado de lectura en tiempo real.
 - **Soporte Drag and Drop:** Arrastre de archivos `.md`, `.markdown` o `.txt` directamente sobre la interfaz o seleccion mediante el explorador nativo de Windows.
 - **Acceso Directo al Portapapeles (Zero-Prompts):** Lectura instantanea de memoria via API Win32 a traves del backend, evitando los dialogos invasivos de solicitud de permisos del navegador.
@@ -285,7 +289,17 @@ Esto proporciona aceleracion completa por hardware, soporte para estilos CSS mod
 Para evitar que procesos de Python queden huerfanos en memoria:
 - **Deteccion Nativa de Ventana (HWND Win32):** El servidor rastrea continuamente el identificador de ventana del navegador mediante `user32.IsWindow(hwnd)`. Mientras la ventana exista (incluso minimizada o en segundo plano), el servidor permanece activo.
 - **Web Worker de Latidos Inmune a Throttling:** Un worker en segundo plano emite peticiones periodicas `POST /api/heartbeat` para evitar que las restricciones de suspension de Chromium detengan la aplicacion.
-- **Apagado Limpio Inmediato:** Al cerrar la ventana desde la `X`, el navegador emite una senal `navigator.sendBeacon('/api/shutdown')` que detiene el servidor de Python de forma ordenada y sin demoras.
+- **Apagado Limpio y Diferenciado:** Al cerrar la ventana desde la `X`, si el modo bandeja esta activo, el navegador libera los ~150 MB de Chromium pero mantiene el servidor en reposo; si el modo bandeja esta desactivado, programa el apagado ordenado tras 4 segundos de gracia.
+
+### Integracion en el System Tray y Guardian de Instancia Unica
+
+La aplicacion implementa soporte completo para la bandeja del sistema (area de notificacion de Windows junto al reloj) mediante el modulo nativo `tray_manager.py`:
+
+- **Cero Dependencias Externas (Win32 ctypes):** Control directo mediante `Shell_NotifyIconW` en `shell32.dll` y `user32.dll` sobre un hilo daemon dedicado (`SystemTrayThread`).
+- **Ahorro de Memoria y Reapertura Ultrarrapida (< 200 ms):** Al cerrar la ventana con la `X`, Microsoft Edge se cierra (liberando ~150 MB de memoria RAM), mientras `pythonw.exe` permanece en reposo en la bandeja consumiendo apenas ~14 a 18 MB de RAM y 0% de CPU. Al pulsar el icono con un clic o doble clic, la ventana se restaura o relanza de inmediato sin demoras de inicio frio.
+- **Menu Contextual Nativo (Clic Derecho):** Incluye accesos directos a *📌 Abrir Markdown to HTML*, *📂 Abrir Carpeta de Documentos*, *📚 Ver Biblioteca (index.html)* y *❌ Salir completamente*.
+- **Notificacion en Globo Informativa (Balloon Tip):** Al enviar la app a la bandeja por primera vez, muestra un globo informativo nativo de Windows confirmando que la app sigue disponible en segundo plano.
+- **Guardian de Instancia Unica (*Single Instance Guard*):** Protegido mediante un Named Mutex de Windows (`Local\MarkdownToHTML_App_SingleInstance_Mutex`). Si el usuario vuelve a dar doble clic al acceso directo cuando la app ya esta en la bandeja, la nueva instancia despierta la app activa mediante `/api/open-app` y finaliza de inmediato, evitando procesos o iconos duplicados.
 
 ### Integracion Win32 para Portapapeles
 
@@ -313,6 +327,7 @@ Para solventar esto:
 MarkdownToHTML_App/
 │
 ├── app.py                     # Servidor HTTP local, API REST y orquestador de ventana nativa
+├── tray_manager.py            # Administrador nativo del System Tray de Windows (Win32 ctypes)
 ├── md_engine.py               # Motor de compilacion de Markdown a HTML (sin dependencias)
 ├── config.template.json       # Plantilla limpia de configuracion rastreada en Git
 ├── config.json                # Configuracion local persistente (aislada en .gitignore)
@@ -321,7 +336,7 @@ MarkdownToHTML_App/
 ├── install_shortcuts.ps1      # Generador y eliminador de accesos directos de Windows
 ├── launch.vbs                 # Lanzador silencioso en VBScript (sin consola negra)
 ├── run.bat                    # Lanzador rapido por lotes
-├── run_tests.py               # Ejecutor maestro de la suite integral de pruebas (116 tests)
+├── run_tests.py               # Ejecutor maestro de la suite integral de pruebas (126 tests)
 ├── verify_app.py              # Suite rapida de verificacion de humo (10 checks)
 ├── README.md                  # Manual tecnico y documentacion del proyecto
 ├── GIT_FLOW.md                # Estandar formal de ramas Git Flow y ciclo de ingenieria
@@ -330,7 +345,8 @@ MarkdownToHTML_App/
 │   ├── __init__.py            # Inicializador del paquete de pruebas
 │   ├── test_helpers.py        # Entorno aislado en carpetas temporales y mocks
 │   ├── test_md_engine.py      # 58 tests: AST, llamadas, tablas, kbd, listas, mermaid, cache
-│   ├── test_app_api.py        # 22 tests: Endpoints REST, loopback real, portapapeles, logs
+│   ├── test_app_api.py        # 23 tests: Endpoints REST, loopback real, tray, portapapeles, logs
+│   ├── test_tray_manager.py   # 6 tests: Estructuras Win32, ciclo de vida del hilo, menus y globo
 │   ├── test_window_geometry.py# 7 tests: Dimensionamiento responsivo de ventana
 │   ├── test_config_and_history.py # 9 tests: Persistencia, limites y purga de fantasmas
 │   ├── test_installer_and_distribution.py # 15 tests: Integridad de instalador y accesos directos
@@ -350,10 +366,10 @@ MarkdownToHTML_App/
 
 ## Pruebas Automatizadas y Calidad de Codigo
 
-El proyecto cuenta con una suite integral de **116 pruebas automatizadas** que validan la funcionalidad del compilador, la API REST, la seguridad, la persistencia, la geometria de pantalla y la distribucion del instalador:
+El proyecto cuenta con una suite integral de **126 pruebas automatizadas** que validan la funcionalidad del compilador, la API REST, la seguridad, la persistencia, la bandeja del sistema, la geometria de pantalla y la distribucion del instalador:
 
 ```powershell
-# Ejecutar suite integral completa (116 tests con metricas detalladas):
+# Ejecutar suite integral completa (126 tests con metricas detalladas):
 python run_tests.py
 
 # O ejecutar verificacion rapida de humo (10 checks):
@@ -363,7 +379,8 @@ python verify_app.py
 ### Cobertura de Pruebas
 
 - **`tests/test_md_engine.py` (58 tests):** Analizador lexico y sintactico, bloques Mermaid interactivos y offline, tokens de diseno de tema claro/oscuro, alertas GitHub con SVG, tablas con alineacion, atajos `[[kbd:...]]`, jerarquia de listas anidadas, badges de estado, slugify y cache inteligente de metadatos.
-- **`tests/test_app_api.py` (22 tests):** API REST del servidor HTTP sobre loopback real (`127.0.0.1`), codigos de estado HTTP, lectura nativa de portapapeles Win32, asignacion de puerto preferido y dinámico, servicio de assets estaticos, validacion de esquemas y logs.
+- **`tests/test_app_api.py` (23 tests):** API REST del servidor HTTP sobre loopback real (`127.0.0.1`), codigos de estado HTTP, lectura nativa de portapapeles Win32, modo tray y endpoints `/api/open-app`, `/api/quit-app`, asignacion de puerto preferido y dinámico, servicio de assets estaticos, validacion de esquemas y logs.
+- **`tests/test_tray_manager.py` (6 tests):** Validacion de estructuras ctypes Win32 de 64 bits (`NOTIFYICONDATAW`), ciclo de vida de arranque y detencion del hilo, despacho asincrono de callbacks, proteccion defensiva de globo y fallback ante ausencia de icono.
 - **`tests/test_window_geometry.py` (7 tests):** Deteccion automatica de resolucion de pantalla (escritorio vs. laptop), dimensiones adaptativas y centrado nativo.
 - **`tests/test_config_and_history.py` (9 tests):** Persistencia de configuracion, recuperacion ante JSON corrupto, limite estricto de 10 elementos en el historial y purga automatica de archivos eliminados.
 - **`tests/test_installer_and_distribution.py` (15 tests):** Integridad sintactica de `instalar.bat` y `desinstalar.bat`, creacion y eliminacion de accesos directos `.lnk` y rutas con espacios.

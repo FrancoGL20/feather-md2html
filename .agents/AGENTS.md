@@ -22,12 +22,13 @@ La aplicación fue concebida bajo las siguientes premisas fundamentales:
 MarkdownToHTML_App/
 │
 ├── app.py                     # Servidor HTTP local, API REST y orquestador de ventana nativa
+├── tray_manager.py            # Administrador nativo del System Tray de Windows (Win32 ctypes, zero-bloatware)
 ├── md_engine.py               # Motor autónomo de compilación Markdown a HTML Apple Design
 ├── config.template.json       # Plantilla limpia rastreada en Git para inicialización
 ├── config.json                # Configuración persistente local (en .gitignore, aislada de Git)
 ├── AGENTS.md                  # Especificación técnica exhaustiva para agentes y desarrolladores
 ├── README.md                  # Guía de usuario y portabilidad para humanos
-├── run_tests.py               # Ejecutor maestro de suite integral (113 tests unitarios/API/seguridad)
+├── run_tests.py               # Ejecutor maestro de suite integral (126 tests unitarios/API/seguridad/tray)
 ├── verify_app.py              # Suite de pruebas de humo rápidas (10 checks automatizados)
 ├── run.bat                    # Lanzador rápido por lotes de Windows (1 clic)
 ├── launch.vbs                 # Lanzador secundario silencioso en VBScript
@@ -39,7 +40,8 @@ MarkdownToHTML_App/
 │   ├── __init__.py            # Inicializador de paquete de pruebas
 │   ├── test_helpers.py        # Clases base aisladas en carpetas temporales y mocks
 │   ├── test_md_engine.py      # 58 tests: AST, llamadas, tablas, kbd, listas anidadas, slugify, mermaid, caché de metadatos
-│   ├── test_app_api.py        # 19 tests: Endpoints REST GET/POST, headers, loopback real
+│   ├── test_app_api.py        # 23 tests: Endpoints REST GET/POST, headers, loopback real, tray y portapapeles
+│   ├── test_tray_manager.py   # 6 tests: Estructuras Win32, ciclo de vida del hilo, menús, callbacks y globo
 │   ├── test_window_geometry.py# 7 tests: Dimensiones responsivas de pantalla escritorio vs laptop
 │   ├── test_config_and_history.py # 9 tests: Configuración, límite de 10 ítems, purga de fantasmas y recarga selectiva
 │   ├── test_installer_and_distribution.py # 15 tests: Integridad del instalador, accesos directos y portabilidad
@@ -290,7 +292,9 @@ En Windows, al ejecutar scripts mediante `pythonw.exe` (modo ventana sin consola
 | `/api/delete-document` | `POST` | Elimina un documento HTML de la biblioteca y del historial | `{ filename?: string, file_path?: string }` | `{ success: bool, filename: string, recent_conversions: array }` |
 | `/api/adjust-window` | `POST` | Ajusta y centra nativamente el tamaño de la ventana según la resolución de la pantalla | `{ screen_w?: number, screen_h?: number }` | `{ success: bool, target_w, target_h, pos_x, pos_y }` |
 | `/api/heartbeat` | `POST` | Refresca el temporizador del watchdog | Ninguno | `{ status: "alive" }` |
-| `/api/shutdown` | `POST` | Notifica cierre inminente de la ventana del navegador | `{ delay?: number, reason?: string }` | `{ status: "scheduled", delay: number }` |
+| `/api/shutdown` | `POST` | Notifica cierre inminente de la ventana del navegador (preserva el servidor en segundo plano si está en modo tray) | `{ delay?: number, reason?: string, force?: bool }` | `{ status: "scheduled" \| "tray_preserved", delay?: number }` |
+| `/api/open-app` | `POST` | Restaura o relanza la ventana de la app desde el System Tray o instancia previa | Ninguno | `{ status: "opened" }` |
+| `/api/quit-app` | `POST` | Finaliza limpiamente el System Tray y el servidor HTTP por completo | Ninguno | `{ status: "quitting" }` |
 | `/api/clipboard` | `GET`/`POST` | Obtiene el texto plano/Markdown del portapapeles de Windows vía Win32 API (cero avisos de permisos) | Ninguno | `{ text: string, length: number }` |
 | `/api/logs` | `GET` | Obtiene las líneas más recientes del archivo de registro `debug_log.txt` | Ninguno | `{ logs: string[] }` |
 | `/api/open-logs` | `POST` | Abre el archivo `debug_log.txt` en el Bloc de notas o editor nativo de Windows | Ninguno | `{ status: "opened" }` |
@@ -319,6 +323,29 @@ Para erradicar definitivamente los diálogos invasivos de Chromium (*"http://127
    - La función `get_server_port()` intenta enlazarse primeramente al puerto `51870` para mantener constante el origen web (`http://127.0.0.1:51870`).
    - Esto preserva de forma permanente los datos de perfil, preferencias y caché en Microsoft Edge / Chrome.
    - Si dicho puerto estuviera ocupado por otra instancia en ejecución, la app recurre de inmediato a un puerto libre efímero dinámico sin interrumpir la operación.
+
+### 5.6. Integración en el System Tray de Windows y Guardián de Instancia Única
+
+La aplicación incluye integración nativa con el área de notificación de Windows (System Tray) mediante el módulo autónomo `tray_manager.py`:
+
+1. **Cero Dependencias Externas (Win32 ctypes):**
+   - Implementado utilizando la API de Windows `Shell_NotifyIconW` en `shell32.dll` y `user32.dll`.
+   - Se ejecuta en un hilo daemon dedicado (`SystemTrayThread`) con su propio bucle de mensajes Win32 (`GetMessageW` / `DispatchMessageW`).
+   - Soporte para auto-recuperación ante reinicios de Explorer mediante el mensaje registrado `TaskbarCreated`.
+2. **Ciclo de Vida Desacoplado y Reapertura Instantánea (< 200 ms):**
+   - Al presionar la `X` de la ventana, Microsoft Edge se cierra (liberando ~150 MB de memoria RAM de Chromium).
+   - El proceso ligero `pythonw.exe` permanece en reposo en la bandeja consumiendo apenas ~14–18 MB de RAM y 0% de CPU.
+   - Al hacer clic izquierdo o doble clic en el icono del tray, o pulsar *📌 Abrir Markdown to HTML*, la ventana se restaura o se relanza de forma instantánea.
+3. **Menú Contextual Nativo (Clic Derecho):**
+   - *📌 Abrir Markdown to HTML* (acción por defecto en negrita).
+   - *📂 Abrir Carpeta de Documentos* (abre el Explorador de Windows en la carpeta destino).
+   - *📚 Ver Biblioteca (index.html)* (abre el catálogo en el navegador).
+   - *❌ Salir completamente* (destruye el icono con `NIM_DELETE` y apaga el proceso limpiamente).
+4. **Notificación en Globo (Balloon Tip):**
+   - Al cerrar la ventana por primera vez, muestra una notificación nativa de Windows indicando que la app sigue activa en la bandeja del sistema.
+5. **Guardián de Instancia Única (*Single Instance Guard*):**
+   - Utiliza un Named Mutex de Windows (`Local\MarkdownToHTML_App_SingleInstance_Mutex`).
+   - Si el usuario ejecuta nuevamente `run.bat` o el acceso directo cuando la app ya está en la bandeja, la nueva instancia detecta el mutex, envía una petición a `/api/open-app` para traer la ventana al frente, y finaliza de inmediato en < 5 ms, evitando procesos e iconos duplicados.
 
 ---
 

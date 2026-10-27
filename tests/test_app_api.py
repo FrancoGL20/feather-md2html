@@ -375,6 +375,43 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
             res = app.get_clipboard_text()
             self.assertEqual(res, "")
 
+    def test_post_open_app_endpoint(self):
+        with patch("app.open_app_window") as mock_open:
+            status, _, data = self._http_post_json("/api/open-app")
+            self.assertEqual(status, 200)
+            self.assertEqual(data.get("status"), "opened")
+            mock_open.assert_called_once()
+
+    def test_post_quit_app_endpoint(self):
+        try:
+            status, _, data = self._http_post_json("/api/quit-app")
+            self.assertEqual(status, 200)
+            self.assertEqual(data.get("status"), "quitting")
+            self.assertIsNotNone(app.shutdown_scheduled_time)
+        finally:
+            app.cancel_scheduled_shutdown()
+
+    def test_post_shutdown_with_window_unload_preserves_tray(self):
+        # When system_tray_enabled and close_to_tray are true
+        cfg = app.get_or_create_config()
+        cfg["system_tray_enabled"] = True
+        cfg["close_to_tray"] = True
+        app.save_config(cfg)
+
+        status, _, data = self._http_post_json("/api/shutdown", {"reason": "window_unload"})
+        self.assertEqual(status, 200)
+        self.assertEqual(data.get("status"), "tray_preserved")
+        self.assertIsNone(app.shutdown_scheduled_time)
+
+    def test_post_config_updates_tray_settings(self):
+        status, _, data = self._http_post_json("/api/config", {
+            "system_tray_enabled": False,
+            "close_to_tray": False
+        })
+        self.assertEqual(status, 200)
+        self.assertFalse(data.get("system_tray_enabled"))
+        self.assertFalse(data.get("close_to_tray"))
+
 
 if __name__ == "__main__":
     unittest.main()
