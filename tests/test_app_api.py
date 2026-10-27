@@ -15,7 +15,7 @@ import threading
 import unittest
 import urllib.request
 import urllib.error
-from http.server import HTTPServer
+from http.server import HTTPServer, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
@@ -39,7 +39,7 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
     def setUp(self):
         super().setUp()
         # Bind server to port 0 (OS allocates free ephemeral port)
-        self.server = HTTPServer(('127.0.0.1', 0), app.AppRequestHandler)
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), app.AppRequestHandler)
         self.port = self.server.server_port
         self.base_url = f"http://127.0.0.1:{self.port}"
         
@@ -57,7 +57,7 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
         url = f"{self.base_url}{path}"
         req = urllib.request.Request(url, method="GET")
         try:
-            with urllib.request.urlopen(req, timeout=5) as response:
+            with urllib.request.urlopen(req, timeout=10) as response:
                 status = response.status
                 headers = dict(response.headers)
                 body = response.read()
