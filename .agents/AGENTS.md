@@ -27,8 +27,8 @@ MarkdownToHTML_App/
 ├── config.json                # Configuración persistente local (en .gitignore, aislada de Git)
 ├── AGENTS.md                  # Especificación técnica exhaustiva para agentes y desarrolladores
 ├── README.md                  # Guía de usuario y portabilidad para humanos
-├── run_tests.py               # Ejecutor maestro de suite integral (79 tests unitarios/API/seguridad)
-├── verify_app.py              # Suite de pruebas de humo rápidas (9 checks automatizados)
+├── run_tests.py               # Ejecutor maestro de suite integral (113 tests unitarios/API/seguridad)
+├── verify_app.py              # Suite de pruebas de humo rápidas (10 checks automatizados)
 ├── run.bat                    # Lanzador rápido por lotes de Windows (1 clic)
 ├── launch.vbs                 # Lanzador secundario silencioso en VBScript
 ├── instalar.bat               # Instalador nativo universal de 1 clic para Windows (%LOCALAPPDATA%)
@@ -38,10 +38,11 @@ MarkdownToHTML_App/
 ├── tests/                     # Suite exhaustiva modular (unittest nativo, zero-bloatware)
 │   ├── __init__.py            # Inicializador de paquete de pruebas
 │   ├── test_helpers.py        # Clases base aisladas en carpetas temporales y mocks
-│   ├── test_md_engine.py      # 42 tests: AST, llamadas, tablas, kbd, listas anidadas, slugify
+│   ├── test_md_engine.py      # 58 tests: AST, llamadas, tablas, kbd, listas anidadas, slugify, mermaid, caché de metadatos
 │   ├── test_app_api.py        # 19 tests: Endpoints REST GET/POST, headers, loopback real
 │   ├── test_window_geometry.py# 7 tests: Dimensiones responsivas de pantalla escritorio vs laptop
-│   ├── test_config_and_history.py # 6 tests: Configuración, límite de 10 ítems y purga de fantasmas
+│   ├── test_config_and_history.py # 9 tests: Configuración, límite de 10 ítems, purga de fantasmas y recarga selectiva
+│   ├── test_installer_and_distribution.py # 15 tests: Integridad del instalador, accesos directos y portabilidad
 │   └── test_security.py       # 5 tests: Traversal defense en /assets/, protección y XSS
 │
 ├── ui/
@@ -165,11 +166,15 @@ En cada archivo HTML generado, `md_engine.py` inyecta una barra flotante en la c
 
 Esta barra permite que el usuario navegue bidireccionalmente entre el documento actual, la biblioteca completa y el documento más nuevo sin necesidad de abrir el Explorador de archivos ni la app de escritorio.
 
-### 4.3. Catálogo Cronológico Dinámico (`index.html`)
+### 4.3. Catálogo Cronológico Dinámico (`index.html`) y Sistema de Caché de Metadatos
 
-La función `generate_index_html(root_dir: Path)`:
+La función `generate_index_html(root_dir: Path, known_titles: dict = None)`:
 1. Escanea el directorio raíz en busca de todos los archivos `*.html` (excluyendo `index.html` y `latest.html`).
-2. Lee los primeros 4000 bytes de cada archivo para extraer el `<title>` original del documento.
+2. **Caché Inteligente de Títulos y Metadatos (`.index_cache.json`):**
+   - Utiliza una clave compuesta `(filename, mtime, size_kb)`.
+   - Si el archivo ya fue indexado y no ha cambiado, o si su título es provisto directamente en `known_titles` (durante la compilación), **no se abre el archivo físico**.
+   - Esto mitiga de forma definitiva el bloqueo heurístico de Windows Defender que intercepta y congela la lectura de archivos HTML pesados con scripts minificados embebidos (`mermaid.min.js`, ~2.8 MB).
+   - Solo se leen los primeros 4000 bytes de un archivo cuando este es nuevo o su `st_mtime` / `st_size` cambió.
 3. Obtiene el timestamp de modificación del sistema de archivos (`st_mtime`) y el tamaño en kilobytes.
 4. **Ordena los documentos de forma estrictamente descendente** (el documento más reciente aparece siempre en la primera posición).
 5. Renderiza una página de biblioteca Apple OLED Dark con:
