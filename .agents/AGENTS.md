@@ -31,7 +31,9 @@ MarkdownToHTML_App/
 ├── verify_app.py              # Suite de pruebas de humo rápidas (9 checks automatizados)
 ├── run.bat                    # Lanzador rápido por lotes de Windows (1 clic)
 ├── launch.vbs                 # Lanzador secundario silencioso en VBScript
-├── install_shortcuts.ps1      # Generador de accesos directos con icono en Escritorio y Menú Inicio
+├── instalar.bat               # Instalador nativo universal de 1 clic para Windows (%LOCALAPPDATA%)
+├── desinstalar.bat            # Desinstalador limpio de accesos directos y carpeta de programa
+├── install_shortcuts.ps1      # Generador/eliminador de accesos directos con icono en Escritorio y Menú Inicio
 │
 ├── tests/                     # Suite exhaustiva modular (unittest nativo, zero-bloatware)
 │   ├── __init__.py            # Inicializador de paquete de pruebas

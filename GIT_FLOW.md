@@ -128,13 +128,17 @@ sequenceDiagram
 - **Diseño de Contratos:** Definir firmas de funciones, endpoints REST o eventos del DOM.
 - **Estrategia TDD:** Definir los casos de prueba unitarios antes de codificar.
 
-### Fase 2: Ramificación Aislada en Git Flow (Branch)
+### Fase 2: Ramificación Aislada Obligatoria en Git Flow (Branch Pre-Coding)
+> [!CAUTION]
+> **REGLA DE ORO:** Queda terminantemente prohibido escribir código o crear archivos directamente en `develop` o `master`. La rama de trabajo debe crearse **ANTES** de iniciar cualquier modificación.
+
 - Comprobar que el espacio de trabajo esté limpio (`git status`).
 - Posicionarse en la rama base de integración: `git checkout develop`.
 - Crear la rama de trabajo siguiendo la taxonomía:
   - Nueva funcionalidad: `git checkout -b feature/<nombre-descriptivo>`
   - Corrección de bugs: `git checkout -b bugfix/<nombre-descriptivo>`
   - Pruebas o testing: `git checkout -b test/<nombre-descriptivo>`
+  - Refactorización: `git checkout -b refactor/<nombre-descriptivo>`
 
 ### Fase 3: Desarrollo Cíclico e Incremental (Code)
 - Desarrollar en iteraciones modulares y pequeñas.
@@ -153,7 +157,7 @@ sequenceDiagram
   ```powershell
   python verify_app.py
   ```
-- **Regla Inquebrantable:** El 100% de las pruebas debe pasar (79+ tests en verde). Si una sola prueba falla, se prohíbe avanzar al commit hasta resolverla.
+- **Regla Inquebrantable:** El 100% de las pruebas debe pasar (100+ tests en verde). Si una sola prueba falla, se prohíbe avanzar al commit hasta resolverla.
 
 ### Fase 5: Sincronización y Evolución de Archivos de Contexto (Context & Rules Evolution)
 > [!IMPORTANT]
@@ -164,13 +168,12 @@ sequenceDiagram
   - `README.md`: Documentación para el usuario humano.
   - `GIT_FLOW.md`: Si el proceso de ingeniería evolucionó.
 
-### Fase 6: Commits Atómicos e Integración Git Flow (Commit & Merge)
-- Realizar commits atómicos con **Conventional Commits**:
-  ```powershell
-  git add <archivos-específicos>
-  git commit -m "<tipo>(<alcance>): <descripción concisa>"
-  ```
-- Integrar a `develop`:
+### Fase 6: Commits Atómicos Progresivos e Integración Git Flow (Commit & Merge)
+- **Commits Atómicos y Granulares:** Prohibido hacer un solo commit masivo con todos los cambios mezclados. Se deben separar por propósito:
+  1. `feat(<scope>): ...` para los archivos de funcionalidad o scripts nuevos.
+  2. `test(<scope>): ...` para las pruebas unitarias y de integración asociadas.
+  3. `docs(<scope>): ...` para README, especificaciones y reglas.
+- **Merge sin Fast-Forward:**
   ```powershell
   git checkout develop
   git merge --no-ff feature/<nombre-rama> -m "merge: feature/<nombre-rama> into develop"

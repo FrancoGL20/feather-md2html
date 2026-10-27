@@ -13,10 +13,13 @@ Convierte texto Markdown o archivos `.md` en documentos HTML autónomos y profes
 - **O desde el Menú Inicio:** Busca `Markdown to HTML` y presiona Enter.
 - **O ejecutando directamente:** Doble clic en `launch.vbs` (inicio 100% silencioso) o `run.bat`.
 
-### En cualquier otra laptop con Windows:
-1. Copia toda la carpeta `MarkdownToHTML_App` a donde desees.
-2. Haz clic derecho en `install_shortcuts.ps1` -> **Ejecutar con PowerShell** (o ejecuta `run.bat`).
-3. ¡Listo! Tendrás tu icono en el escritorio y podrás usar la app sin instalar nada más.
+### En cualquier otra laptop con Windows (o para compartir con compañeros):
+1. Copia o descomprime la carpeta `MarkdownToHTML_App`.
+2. **Doble clic en `instalar.bat`** (Instalador rápido de 1 clic):
+   - Se instala automáticamente en `%LOCALAPPDATA%\Programs\MarkdownToHTML_App` sin requerir permisos de Administrador.
+   - Crea los accesos directos en el **Escritorio** y en el **Menú Inicio**.
+   - Incluye bypass automático de políticas de PowerShell y detección inteligente de Python.
+3. *(Opcional)* Si en algún momento deseas desinstalar la app, simplemente ejecuta `desinstalar.bat`.
 
 ---
 
