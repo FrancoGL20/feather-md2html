@@ -11,6 +11,8 @@ import sys
 import re
 import html
 import unicodedata
+import json
+import threading
 from pathlib import Path
 from datetime import datetime
 
@@ -1529,11 +1531,120 @@ def compile_markdown_to_body(md_text: str, custom_title: str = None, input_file_
     """Función de conveniencia para compilar markdown directamente a HTML del cuerpo."""
     return parse_markdown(md_text, custom_title=custom_title, input_file_path=input_file_path)["body"]
 
-def generate_index_html(root_dir: Path) -> Path:
+_INDEX_CACHE_LOCK = threading.Lock()
+_TITLE_CACHE = {}  # In-memory fast cache: normalized_path_str -> {"title": str, "mtime": float, "size_kb": int}
+
+def load_index_cache(root_dir: Path) -> dict:
+    """Carga el archivo de metadatos ligero .index_cache.json del directorio raíz si existe."""
+    cache_file = root_dir / ".index_cache.json"
+    if cache_file.exists():
+        try:
+            with open(cache_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+        except Exception:
+            pass
+    return {}
+
+def save_index_cache(root_dir: Path, cache: dict):
+    """Guarda de forma atómica/defensiva el archivo de metadatos .index_cache.json."""
+    cache_file = root_dir / ".index_cache.json"
+    try:
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+def remove_from_index_cache(root_dir: Path, filename: str):
+    """Elimina una entrada del caché de índice tras borrar un documento."""
+    cache = load_index_cache(root_dir)
+    if filename in cache:
+        del cache[filename]
+        save_index_cache(root_dir, cache)
+    with _INDEX_CACHE_LOCK:
+        for k in list(_TITLE_CACHE.keys()):
+            if k.endswith(filename) or k.endswith(f"\\{filename}") or k.endswith(f"/{filename}"):
+                _TITLE_CACHE.pop(k, None)
+
+def get_cached_title_or_read(file_path: Path, known_title: str = None) -> str:
+    """
+    Obtiene el título de un documento HTML buscando en caché por (mtime, size_kb).
+    Evita abrir archivos pesados que disparan el escaneo heurístico de Windows Defender.
+    """
+    global _TITLE_CACHE
+    try:
+        resolved_str = str(file_path.resolve())
+        stat = file_path.stat()
+        mtime = stat.st_mtime
+        size_kb = max(1, round(stat.st_size / 1024))
+    except Exception:
+        resolved_str = str(file_path)
+        stat = None
+        mtime = 0
+        size_kb = 0
+
+    if known_title:
+        with _INDEX_CACHE_LOCK:
+            _TITLE_CACHE[resolved_str] = {
+                "title": known_title,
+                "mtime": mtime,
+                "size_kb": size_kb
+            }
+        return known_title
+
+    with _INDEX_CACHE_LOCK:
+        cached = _TITLE_CACHE.get(resolved_str)
+        if cached and cached.get("mtime") == mtime and cached.get("size_kb") == size_kb:
+            return cached["title"]
+
+    # Si el archivo está en un root_dir con .index_cache.json, intentar cargarlo
+    try:
+        p_cache = load_index_cache(file_path.parent)
+        if file_path.name in p_cache:
+            entry = p_cache[file_path.name]
+            if entry.get("mtime") == mtime and entry.get("size_kb") == size_kb:
+                doc_title = entry["title"]
+                with _INDEX_CACHE_LOCK:
+                    _TITLE_CACHE[resolved_str] = {
+                        "title": doc_title,
+                        "mtime": mtime,
+                        "size_kb": size_kb
+                    }
+                return doc_title
+    except Exception:
+        pass
+
+    # Fallback: leer los primeros 4000 bytes solo si no está en ningún caché
+    fallback = file_path.stem.replace("-", " ").replace("_", " ").capitalize()
+    doc_title = fallback
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as fh:
+            head_chunk = fh.read(4000)
+            t_match = re.search(r'<title>(.*?)</title>', head_chunk, re.IGNORECASE)
+            if t_match and t_match.group(1).strip():
+                doc_title = t_match.group(1).strip()
+    except Exception:
+        pass
+
+    with _INDEX_CACHE_LOCK:
+        _TITLE_CACHE[resolved_str] = {
+            "title": doc_title,
+            "mtime": mtime,
+            "size_kb": size_kb
+        }
+    return doc_title
+
+def generate_index_html(root_dir: Path, known_titles: dict = None) -> Path:
     """
     Genera o actualiza el archivo index.html en el directorio raíz.
     Lista todos los documentos HTML generados ordenados de más nuevo a más viejo.
+    Utiliza caché de títulos/metadatos para evitar lecturas de disco que bloquean Windows Defender.
     """
+    known_titles = known_titles or {}
+    cache = load_index_cache(root_dir)
+    cache_dirty = False
+
     html_files = []
     for f in root_dir.glob("*.html"):
         if f.name.lower() in ("index.html", "latest.html"):
@@ -1542,16 +1653,20 @@ def generate_index_html(root_dir: Path) -> Path:
             stat = f.stat()
             mtime = stat.st_mtime
             size_kb = max(1, round(stat.st_size / 1024))
-            # Extraer título del archivo si es posible
-            doc_title = f.stem.replace("-", " ").replace("_", " ").capitalize()
-            try:
-                with open(f, "r", encoding="utf-8", errors="ignore") as fh:
-                    head_chunk = fh.read(4000)
-                    t_match = re.search(r'<title>(.*?)</title>', head_chunk, re.IGNORECASE)
-                    if t_match and t_match.group(1).strip():
-                        doc_title = t_match.group(1).strip()
-            except Exception:
-                pass
+            
+            # 1. ¿Título provisto directamente por quien convirtió el archivo?
+            if f.name in known_titles:
+                doc_title = known_titles[f.name]
+                cache[f.name] = {"title": doc_title, "mtime": mtime, "size_kb": size_kb}
+                cache_dirty = True
+            # 2. ¿Título válido en caché de disco con mtime y size_kb idénticos?
+            elif f.name in cache and cache[f.name].get("mtime") == mtime and cache[f.name].get("size_kb") == size_kb:
+                doc_title = cache[f.name]["title"]
+            else:
+                # 3. Solo si es nuevo o modificado y no está en caché, extraer título
+                doc_title = get_cached_title_or_read(f)
+                cache[f.name] = {"title": doc_title, "mtime": mtime, "size_kb": size_kb}
+                cache_dirty = True
 
             dt = datetime.fromtimestamp(mtime)
             html_files.append({
@@ -1564,6 +1679,9 @@ def generate_index_html(root_dir: Path) -> Path:
             })
         except Exception:
             continue
+
+    if cache_dirty:
+        save_index_cache(root_dir, cache)
 
     # Ordenar de más nuevo a más viejo
     html_files.sort(key=lambda x: x["mtime"], reverse=True)
@@ -1996,7 +2114,7 @@ def convert_and_update_library(md_text: str, root_dir_str: str, custom_title: st
         f.write(html_out)
 
     # 5. Generar / actualizar index.html y latest.html
-    index_file = generate_index_html(root_dir)
+    index_file = generate_index_html(root_dir, known_titles={filename: final_title})
     latest_file = generate_latest_redirect(root_dir, out_path, final_title)
 
     return {

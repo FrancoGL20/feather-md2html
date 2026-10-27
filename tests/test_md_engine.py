@@ -9,6 +9,8 @@ and catalog generation.
 import os
 import sys
 import time
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -573,6 +575,62 @@ sequenceDiagram
         # Print media query
         self.assertIn(".mermaid-actions { display: none !important; }", md_engine.COMMON_STYLES)
         self.assertIn(".mermaid-source { display: none !important; }", md_engine.COMMON_STYLES)
+
+
+class TestIndexMetadataCaching(unittest.TestCase):
+    """Pruebas unitarias para el sistema de caché de metadatos y aceleración de índice."""
+
+    def setUp(self):
+        self.temp_dir = Path(tempfile.mkdtemp(prefix="cache_test_"))
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_metadata_cache_persists_and_avoids_reread(self):
+        f = self.temp_dir / "doc1.html"
+        f.write_text("<!DOCTYPE html><html><head><title>Título Original</title></head><body>Hola</body></html>", encoding="utf-8")
+
+        # Primera generación: extrae de disco y crea .index_cache.json
+        md_engine.generate_index_html(self.temp_dir)
+        cache_file = self.temp_dir / ".index_cache.json"
+        self.assertTrue(cache_file.exists())
+        
+        cache = md_engine.load_index_cache(self.temp_dir)
+        self.assertIn("doc1.html", cache)
+        self.assertEqual(cache["doc1.html"]["title"], "Título Original")
+
+        # Sobrescribimos el caché con un título artificial sin tocar el archivo físico ni su mtime
+        cache["doc1.html"]["title"] = "Título En Caché Rápido"
+        md_engine.save_index_cache(self.temp_dir, cache)
+
+        # Segunda generación: debe respetar el título del caché sin abrir el archivo físico
+        index_file = md_engine.generate_index_html(self.temp_dir)
+        content = index_file.read_text(encoding="utf-8")
+        self.assertIn("Título En Caché Rápido", content)
+
+    def test_generate_index_html_uses_known_titles_without_reading_disk(self):
+        f = self.temp_dir / "doc2.html"
+        f.write_text("<!DOCTYPE html><html><head><title>Título En Disco</title></head><body>Hola</body></html>", encoding="utf-8")
+
+        # Invocamos con known_titles
+        index_file = md_engine.generate_index_html(self.temp_dir, known_titles={"doc2.html": "Título Provisto Directamente"})
+        content = index_file.read_text(encoding="utf-8")
+        self.assertIn("Título Provisto Directamente", content)
+
+        cache = md_engine.load_index_cache(self.temp_dir)
+        self.assertEqual(cache["doc2.html"]["title"], "Título Provisto Directamente")
+
+    def test_remove_from_index_cache_cleans_entry(self):
+        f = self.temp_dir / "doc3.html"
+        f.write_text("<title>Doc 3</title>", encoding="utf-8")
+        md_engine.generate_index_html(self.temp_dir)
+
+        cache = md_engine.load_index_cache(self.temp_dir)
+        self.assertIn("doc3.html", cache)
+
+        md_engine.remove_from_index_cache(self.temp_dir, "doc3.html")
+        cache_after = md_engine.load_index_cache(self.temp_dir)
+        self.assertNotIn("doc3.html", cache_after)
 
 
 if __name__ == "__main__":

@@ -123,17 +123,12 @@ def is_app_window_alive() -> bool:
         return None
 
 def extract_title_from_html(file_path: Path) -> str:
-    """Extrae el título de un documento HTML buscando la etiqueta <title> o recurre al stem."""
-    fallback = file_path.stem.replace("-", " ").replace("_", " ").capitalize()
+    """Extrae el título de un documento HTML buscando en caché o en la etiqueta <title>."""
     try:
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as fh:
-            head_chunk = fh.read(4000)
-            t_match = re.search(r'<title>(.*?)</title>', head_chunk, re.IGNORECASE)
-            if t_match and t_match.group(1).strip():
-                return t_match.group(1).strip()
+        return md_engine.get_cached_title_or_read(file_path)
     except Exception:
-        pass
-    return fallback
+        fallback = file_path.stem.replace("-", " ").replace("_", " ").capitalize()
+        return fallback
 
 def get_or_create_config() -> dict:
     config = {
@@ -184,16 +179,26 @@ def get_or_create_config() -> dict:
                     pass
 
     # Descubrir y recargar archivos HTML preexistentes en la carpeta raíz
+    # Optimización: Solo evaluar candidatos ordenados por mtime para evitar re-lecturas masivas
     untracked_items = []
     if root_path.exists() and root_path.is_dir():
+        candidates = []
         for f in root_path.glob("*.html"):
             if f.name.lower() in ("index.html", "latest.html"):
                 continue
             try:
                 resolved_f = str(f.resolve()).lower()
                 if resolved_f not in known_paths:
-                    stat = f.stat()
-                    mtime = stat.st_mtime
+                    candidates.append((f, f.stat().st_mtime))
+            except Exception:
+                continue
+
+        if candidates:
+            # Ordenar candidatos de más nuevo a más viejo por mtime
+            candidates.sort(key=lambda x: x[1], reverse=True)
+            # Solo procesar como máximo los 10 más recientes
+            for f, mtime in candidates[:10]:
+                try:
                     dt = datetime.fromtimestamp(mtime)
                     doc_title = extract_title_from_html(f)
                     untracked_items.append({
@@ -206,8 +211,8 @@ def get_or_create_config() -> dict:
                         },
                         "mtime": mtime
                     })
-            except Exception:
-                continue
+                except Exception:
+                    continue
 
     # Si hay archivos preexistentes no registrados, ordenarlos por fecha y anexarlos
     if untracked_items:
@@ -222,7 +227,7 @@ def get_or_create_config() -> dict:
 
     save_config(config)
 
-    # Mantener index.html en sincronía con los archivos reales existentes en disco
+    # Mantener index.html en sincronía con los archivos reales existentes en disco (usando caché de metadatos)
     try:
         md_engine.generate_index_html(root_path)
     except Exception as ie:
@@ -599,6 +604,15 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             config["recent_conversions"] = recents
             save_config(config)
 
+            # Eliminar del caché de índice
+            try:
+                if filename:
+                    md_engine.remove_from_index_cache(root_dir, filename)
+                elif file_path_str:
+                    md_engine.remove_from_index_cache(root_dir, Path(file_path_str).name)
+            except Exception:
+                pass
+
             # Regenerar catálogo index.html y latest.html en la biblioteca
             try:
                 md_engine.generate_index_html(root_dir)
@@ -606,14 +620,7 @@ class AppRequestHandler(BaseHTTPRequestHandler):
                 if rem:
                     rem.sort(key=lambda x: x.stat().st_mtime, reverse=True)
                     newest = rem[0]
-                    newest_title = newest.stem.replace("-", " ").capitalize()
-                    try:
-                        with open(newest, "r", encoding="utf-8", errors="ignore") as fh:
-                            m = re.search(r'<title>(.*?)</title>', fh.read(4000), re.IGNORECASE)
-                            if m and m.group(1).strip():
-                                newest_title = m.group(1).strip()
-                    except Exception:
-                        pass
+                    newest_title = extract_title_from_html(newest)
                     md_engine.generate_latest_redirect(root_dir, newest, newest_title)
                 else:
                     latest_p = root_dir / "latest.html"

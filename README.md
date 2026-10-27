@@ -85,10 +85,10 @@ Convierte texto Markdown o archivos `.md` en documentos HTML autónomos y profes
 
 ## 🧪 Pruebas Automatizadas y Calidad de Código
 
-La aplicación cuenta con una suite integral de 96 pruebas unitarias, de integración, de seguridad y de geometría, sin dependencias externas:
+La aplicación cuenta con una suite integral de 113 pruebas unitarias, de integración, de seguridad y de geometría, sin dependencias externas:
 
 ```powershell
-# Ejecutar suite integral completa (96 tests con métricas en tiempo real):
+# Ejecutar suite integral completa (113 tests con métricas en tiempo real):
 python run_tests.py
 
 # O ejecutar verificación rápida de humo (10 checks):
@@ -96,10 +96,11 @@ python verify_app.py
 ```
 
 ### Módulos de Prueba (`tests/`):
-- **`tests/test_md_engine.py` (52 tests):** Compilador léxico y sintáctico, diagramas Mermaid offline e interactivos, tokens del tema volcanic amber & deep obsidian, callouts GitHub, tablas con alineación, atajos `[[kbd:...]]`, jerarquía de listas anidadas, badges de estado, slugify y catálogo cronológico.
-- **`tests/test_app_api.py` (20 tests):** API REST del servidor HTTP local sobre loopback real (`127.0.0.1`), códigos de estado HTTP, endpoints GET/POST, servicio de assets estáticos (PNG, ICO, JS), validación y manejo de errores.
+- **`tests/test_md_engine.py` (58 tests):** Compilador léxico y sintáctico, diagramas Mermaid offline e interactivos, tokens del tema volcanic amber & deep obsidian, callouts GitHub, tablas con alineación, atajos `[[kbd:...]]`, jerarquía de listas anidadas, badges de estado, slugify, catálogo cronológico y caché inteligente de metadatos/títulos.
+- **`tests/test_app_api.py` (19 tests):** API REST del servidor HTTP local sobre loopback real (`127.0.0.1`), códigos de estado HTTP, endpoints GET/POST, servicio de assets estáticos (PNG, ICO, JS), validación y manejo de errores.
 - **`tests/test_window_geometry.py` (7 tests):** Detección de pantallas de escritorio vs. laptops, dimensionamiento adaptativo, límites mínimos y centrado nativo.
 - **`tests/test_config_and_history.py` (9 tests):** Persistencia de configuración, auto-recarga de documentos existentes al abrir la app, recuperación ante JSON corrupto, límite estricto de 10 elementos e higiene de archivos fantasma.
+- **`tests/test_installer_and_distribution.py` (15 tests):** Integridad del instalador nativo, scripts por lotes, generación de accesos directos y portabilidad.
 - **`tests/test_security.py` (5 tests):** Prevención de Path Traversal en `/assets/`, protección de archivos del sistema e `index.html`/`latest.html` contra eliminación y sanitización XSS.
 
 ---
