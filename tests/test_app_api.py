@@ -125,6 +125,12 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
         self.assertIn("application/javascript", headers.get("Content-Type", ""))
         self.assertGreater(len(body), 1000000)
 
+    def test_get_assets_serves_tex_svg_js(self):
+        status, headers, body = self._http_get("/assets/tex-svg.min.js")
+        self.assertEqual(status, 200)
+        self.assertIn("application/javascript", headers.get("Content-Type", ""))
+        self.assertGreater(len(body), 1000000)
+
     def test_get_config_returns_json(self):
         status, headers, data = self._http_get("/api/config")
         self.assertEqual(status, 200)

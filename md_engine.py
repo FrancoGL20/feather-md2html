@@ -16,6 +16,18 @@ import threading
 from pathlib import Path
 from datetime import datetime
 
+# Módulo modular de renderizado y protección matemática LaTeX (MathJax 3 100% Offline)
+from math_engine import (
+    MathContext,
+    build_math_block_html,
+    generate_math_scripts,
+    get_math_runtime_code,
+    MATH_CSS_STYLES,
+    is_math_heading_or_line,
+    _TOKEN_BLOCK_PREFIX,
+    _TOKEN_INLINE_PREFIX,
+)
+
 # SVG Icons
 ICON_DOC = """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>"""
 ICON_FOLDER = """<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>"""
@@ -608,7 +620,7 @@ html.light .mermaid-header {
   .container { padding: 1.5rem 1.2rem; }
   h1 { font-size: 1.8rem; }
 }
-"""
+""" + MATH_CSS_STYLES
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 _mermaid_js_cache = None
@@ -810,6 +822,7 @@ HTML_DOC_TEMPLATE = """<!DOCTYPE html>
     }}
   </script>
 {mermaid_scripts}
+{math_scripts}
 </body>
 </html>
 """
@@ -986,7 +999,7 @@ def detect_smart_title(lines: list, custom_title: str = None, input_file_path: s
     # 6. Primera línea en negrita destacada (ej. **Reporte de Cobertura**)
     for idx, l in enumerate(lines[:15]):
         st = l.strip()
-        if not st or st.startswith(('#', '```', '>', '|', '---', '===', '***')):
+        if not st or st.startswith(('#', '```', '>', '|', '---', '===', '***', _TOKEN_BLOCK_PREFIX, _TOKEN_INLINE_PREFIX)) or is_math_heading_or_line(st):
             continue
         m_bold = re.match(r'^\s*(\*\*|__)(.*?)\1\s*$', st)
         if m_bold:
@@ -994,10 +1007,12 @@ def detect_smart_title(lines: list, custom_title: str = None, input_file_path: s
             if len(cl) >= 3:
                 return cl, 'bold_line', idx
 
-    # 7. Primera línea significativa de texto
+    # 7. Primera línea significativa de texto (ignorando bloques y fórmulas matemáticas e imágenes)
     for idx, l in enumerate(lines[:20]):
         st = l.strip()
-        if not st or st.startswith(('#', '```', '>', '|', '---', '===', '***', '<!--', '<')):
+        if not st or st.startswith(('#', '```', '>', '|', '---', '===', '***', '<!--', '<', _TOKEN_BLOCK_PREFIX, _TOKEN_INLINE_PREFIX)) or is_math_heading_or_line(st):
+            continue
+        if _TOKEN_INLINE_PREFIX in st:
             continue
         cl = clean_markdown_inline(st)
         if len(cl) >= 4:
@@ -1212,6 +1227,11 @@ def build_tree(raw_items):
 
 def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str = None):
     md_text = md_text.lstrip('\ufeff')
+
+    # Inicializar contexto matemático modular y proteger fórmulas LaTeX
+    math_ctx = MathContext()
+    md_text = math_ctx.protect_markdown(md_text)
+
     lines = md_text.splitlines()
 
     frontmatter = {}
@@ -1263,6 +1283,12 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
                 i += 2
             else:
                 i += 1
+            continue
+
+        # Bloque matemático display en su propia línea
+        if stripped.startswith(_TOKEN_BLOCK_PREFIX) and stripped.endswith('\x00'):
+            html_blocks.append(stripped)
+            i += 1
             continue
 
         # Bloques Setext Headings no consumidos como título
@@ -1329,6 +1355,13 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
                     f'</div>'
                 )
                 html_blocks.append(block_html)
+                continue
+
+            # Bloque especial de Fórmulas Matemáticas LaTeX (```math o ```equation)
+            if lang_lower in ('math', 'equation'):
+                math_block_id = len(math_ctx.block_items) + 1
+                math_ctx.has_math = True
+                html_blocks.append(build_math_block_html(code_raw, math_block_id))
                 continue
 
             code_html = highlight_code_block(code_raw, lang)
@@ -1483,6 +1516,7 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
                and not re.match(r'^\s*#{1,6}\s+', body_lines[i])
                and not body_lines[i].strip().startswith('```')
                and not body_lines[i].strip().startswith('>')
+               and not body_lines[i].strip().startswith(_TOKEN_BLOCK_PREFIX)
                and not (
                    ('|' in body_lines[i] and i + 1 < n and re.match(r'^\s*\|?\s*:?---', body_lines[i + 1])) or
                    (body_lines[i].strip().startswith('|') and body_lines[i].strip().endswith('|') and i + 1 < n and body_lines[i + 1].strip().startswith('|') and body_lines[i + 1].strip().endswith('|'))
@@ -1516,15 +1550,19 @@ def parse_markdown(md_text: str, custom_title: str = None, input_file_path: str 
             f'</details>'
         )
 
+    raw_body = "\n".join(html_blocks)
+    final_body = math_ctx.restore_html(raw_body)
+
     final_title = smart_title or "Documento"
     return {
         "title": final_title,
         "badge": "",
         "subtitle": "",
-        "body": "\n".join(html_blocks),
+        "body": final_body,
         "toc": toc_html,
         "frontmatter": frontmatter,
-        "has_mermaid": has_mermaid
+        "has_mermaid": has_mermaid,
+        "has_math": math_ctx.has_math
     }
 
 def compile_markdown_to_body(md_text: str, custom_title: str = None, input_file_path: str = None) -> str:
@@ -2093,6 +2131,10 @@ def convert_and_update_library(md_text: str, root_dir_str: str, custom_title: st
         else:
             mermaid_injection = f"  <script>\n{MERMAID_CLIENT_JS}\n  </script>"
 
+    math_injection = ""
+    if parsed.get("has_math"):
+        math_injection = generate_math_scripts()
+
     html_out = HTML_DOC_TEMPLATE.format(
         title=escape(final_title),
         styles=COMMON_STYLES,
@@ -2107,7 +2149,8 @@ def convert_and_update_library(md_text: str, root_dir_str: str, custom_title: st
         footer_date=now_str,
         icon_folder=ICON_FOLDER,
         icon_bolt=ICON_BOLT,
-        mermaid_scripts=mermaid_injection
+        mermaid_scripts=mermaid_injection,
+        math_scripts=math_injection
     )
 
     with open(out_path, "w", encoding="utf-8") as f:
