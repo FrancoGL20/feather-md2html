@@ -418,8 +418,57 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
         self.assertFalse(data.get("system_tray_enabled"))
         self.assertFalse(data.get("close_to_tray"))
 
+    def test_get_ui_styles_css_and_app_js(self):
+        status_css, headers_css, body_css = self._http_get("/styles.css")
+        self.assertEqual(status_css, 200)
+        self.assertIn("text/css", headers_css.get("Content-Type", ""))
+        self.assertIn("--canvas", body_css.decode("utf-8"))
+
+        status_js, headers_js, body_js = self._http_get("/app.js")
+        self.assertEqual(status_js, 200)
+        self.assertIn("application/javascript", headers_js.get("Content-Type", ""))
+        self.assertIn("performConversion", body_js.decode("utf-8"))
+
+    def test_http_router_declarative_dispatch(self):
+        from md2html.adapters.http.router import HttpRouter
+        router = HttpRouter()
+        router.add_route("GET", "/health", "handle_health")
+        router.add_prefix_route("GET", "/static/", "handle_static")
+        router.add_route("POST", "/submit", "handle_submit")
+
+        self.assertEqual(router.resolve("GET", "/health"), "handle_health")
+        self.assertEqual(router.resolve("GET", "/static/logo.png"), "handle_static")
+        self.assertIsNone(router.resolve("GET", "/unknown"))
+        self.assertEqual(router.resolve("POST", "/submit"), "handle_submit")
+        self.assertIsNone(router.resolve("POST", "/health"))
+
+    def test_core_domain_models_dict_compatibility(self):
+        from md2html.core.models import ParsedDocument, ConversionResult, WindowGeometry
+        doc = ParsedDocument(body="<p>Hola</p>", toc=[], title="Demo", has_mermaid=False, has_math=True)
+        self.assertEqual(doc["title"], "Demo")
+        self.assertTrue(doc.get("has_math"))
+        self.assertIn("body", doc)
+        self.assertEqual(doc.to_dict()["title"], "Demo")
+
+        conv = ConversionResult(
+            success=True,
+            file_path="C:/tmp/demo.html",
+            file_url="file:///C:/tmp/demo.html",
+            filename="demo.html",
+            title="Demo",
+            index_url="file:///C:/tmp/index.html",
+            latest_url="file:///C:/tmp/latest.html",
+            words=10,
+            reading_time=1,
+        )
+        self.assertTrue(conv["success"])
+        self.assertEqual(conv.get("words"), 10)
+        self.assertIn("filename", conv)
+
+        geom = WindowGeometry(width=750, height=680, pos_x=100, pos_y=50)
+        w, h, x, y = geom
+        self.assertEqual((w, h, x, y), (750, 680, 100, 50))
+
 
 if __name__ == "__main__":
     unittest.main()
-
-

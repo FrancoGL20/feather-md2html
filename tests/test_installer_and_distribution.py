@@ -36,8 +36,17 @@ class TestInstallerAndDistributionIntegrity(IsolatedEnvironmentTestCase):
             APP_DIR / "launch.vbs",
             APP_DIR / "app.py",
             APP_DIR / "md_engine.py",
+            APP_DIR / "math_engine.py",
+            APP_DIR / "tray_manager.py",
             APP_DIR / "config.template.json",
             APP_DIR / "ui" / "index.html",
+            APP_DIR / "ui" / "styles.css",
+            APP_DIR / "ui" / "app.js",
+            APP_DIR / "md2html" / "__init__.py",
+            APP_DIR / "md2html" / "core" / "models.py",
+            APP_DIR / "md2html" / "core" / "ports.py",
+            APP_DIR / "md2html" / "adapters" / "http" / "router.py",
+            APP_DIR / "md2html" / "templates" / "loader.py",
             APP_DIR / "assets" / "app_icon.ico",
         ]
         for f in essential_files:
