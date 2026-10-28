@@ -24,11 +24,12 @@ MarkdownToHTML_App/
 ├── app.py                     # Servidor HTTP local, API REST y orquestador de ventana nativa
 ├── tray_manager.py            # Administrador nativo del System Tray de Windows (Win32 ctypes, zero-bloatware)
 ├── md_engine.py               # Motor autónomo de compilación Markdown a HTML Apple Design
+├── math_engine.py             # Módulo modular de renderizado y protección matemática LaTeX (MathJax 3 100% Offline)
 ├── config.template.json       # Plantilla limpia rastreada en Git para inicialización
 ├── config.json                # Configuración persistente local (en .gitignore, aislada de Git)
 ├── AGENTS.md                  # Especificación técnica exhaustiva para agentes y desarrolladores
 ├── README.md                  # Guía de usuario y portabilidad para humanos
-├── run_tests.py               # Ejecutor maestro de suite integral (126 tests unitarios/API/seguridad/tray)
+├── run_tests.py               # Ejecutor maestro de suite integral (137 tests unitarios/API/seguridad/tray/math)
 ├── verify_app.py              # Suite de pruebas de humo rápidas (10 checks automatizados)
 ├── run.bat                    # Lanzador rápido por lotes de Windows (1 clic)
 ├── launch.vbs                 # Lanzador secundario silencioso en VBScript
@@ -39,8 +40,8 @@ MarkdownToHTML_App/
 ├── tests/                     # Suite exhaustiva modular (unittest nativo, zero-bloatware)
 │   ├── __init__.py            # Inicializador de paquete de pruebas
 │   ├── test_helpers.py        # Clases base aisladas en carpetas temporales y mocks
-│   ├── test_md_engine.py      # 58 tests: AST, llamadas, tablas, kbd, listas anidadas, slugify, mermaid, caché de metadatos
-│   ├── test_app_api.py        # 23 tests: Endpoints REST GET/POST, headers, loopback real, tray y portapapeles
+│   ├── test_md_engine.py      # 68 tests: AST, llamadas, tablas, kbd, listas anidadas, slugify, mermaid, latex math, caché
+│   ├── test_app_api.py        # 24 tests: Endpoints REST GET/POST, headers, loopback real, tray, portapapeles y assets
 │   ├── test_tray_manager.py   # 6 tests: Estructuras Win32, ciclo de vida del hilo, menús, callbacks y globo
 │   ├── test_window_geometry.py# 7 tests: Dimensiones responsivas de pantalla escritorio vs laptop
 │   ├── test_config_and_history.py # 9 tests: Configuración, límite de 10 ítems, purga de fantasmas y recarga selectiva
@@ -53,7 +54,9 @@ MarkdownToHTML_App/
 └── assets/
     ├── app_icon.ico           # Icono multi-resolución en formato nativo Windows ICO (256x256)
     ├── app_icon.png           # Isotipo del icono en formato PNG de alta resolución
-    └── generate_icon.ps1      # Generador vectorial del icono utilizando System.Drawing
+    ├── generate_icon.ps1      # Generador vectorial del icono utilizando System.Drawing
+    ├── mermaid.min.js         # Runtime minificado de diagramas Mermaid 11.x (100% offline)
+    └── tex-svg.min.js         # Runtime vectorial SVG de fórmulas matemáticas MathJax 3 (100% offline)
 ```
 
 ---
@@ -142,6 +145,16 @@ El parser implementa un compilador de un solo paso que procesa el documento lín
    - Sincronización en caliente con el botón de alternancia de tema (`toggleTheme()` re-renderiza con la paleta `dark` o `default`).
    - Manejo defensivo de errores sintácticos con alerta visual y auto-despliegue del código fuente.
    - En documentos sin diagramas Mermaid, se omite completamente el bundle de scripts (Zero-Bloatware), preservando un tamaño de archivo mínimo (< 50 KB) y tiempos de compilación de < 20 ms.
+9. **Fórmulas Matemáticas LaTeX 100% Offline y Vectoriales (MathJax 3 SVG):**
+   - Módulo desacoplado y modular `math_engine.py`: encapsula la detección, tokenización defensiva, inyección de runtime y estilos tipográficos matemáticos.
+   - Soporte exhaustivo para delimitadores TeX estándar:
+     - Fórmulas en bloque (Display Math): `$$...$$` (línea simple y multilínea), `\[...\]` y bloques delimitados por ```math o ```equation.
+     - Fórmulas en línea (Inline Math): `$...$` y `\(...\)`.
+   - Pre-tokenización defensiva: previene que el parser de Markdown confunda subíndices (`_`) con cursiva (`<em>`), asteriscos (`*`) con negrita o capture fórmulas al inicio como títulos del documento (`detect_smart_title`).
+   - Regla de defensa monetaria: montos monetarios comunes como `$50 USD y $100 USD` o dólares escapados `\$12,000,000` son preservados como texto plano sin confundirse con fórmulas matemáticas.
+   - Runtime embebido offline: `assets/tex-svg.min.js` (MathJax 3) genera gráficos vectoriales SVG autónomos con `fill="currentColor"`. No requiere fuentes web externas (`.woff`, `.ttf`) ni reglas `@font-face`, haciéndolo 100% inmune a restricciones CORS o de protocolo `file:///`.
+   - Sincronización automática de tema: al usar vectores SVG con `currentColor`, las fórmulas se adaptan inmediatamente a los temas claro (`#0f172a`) y oscuro Volcanic Amber (`#f8fafc`).
+   - Cero Bloatware: en documentos sin expresiones matemáticas, se omite por completo el bundle de MathJax, manteniendo documentos de < 50 KB y compilación < 20 ms.
 
 ### 4.2. Barra de Navegación Cruzada (Cross-Document Navigation Bar)
 

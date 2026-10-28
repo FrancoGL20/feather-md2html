@@ -68,6 +68,8 @@ Todo agente que interactúe con este repositorio debe clasificar el requerimient
    - Re-ejecutar `python run_tests.py` sobre `develop` para certificar la integración.
    - Eliminar la rama local de trabajo: `git branch -d feature/<nombre>`.
 
-8. **Fase 8: Cierre, Inspección de Árbol y Auto-Mejora Continua:**
-   - Mostrar al usuario el árbol de commits: `git log -n 5 --graph --oneline` y `git status` limpio.
-   - Seguir estrictamente el protocolo de [closing_protocol.md](file:///c:/General/MarkdownToHTML_App/.agents/rules/closing_protocol.md).
+8. **Fase 8: Cierre de Ticket, Resumen Estandarizado y Comandos Git:**
+   - De acuerdo con [closing_protocol.md](file:///c:/General/MarkdownToHTML_App/.agents/rules/closing_protocol.md), cada tarea es un **Ticket**.
+   - Proporcionar de forma obligatoria el **Resumen Estandarizado de Cierre de Ticket** (Cambios realizados, Cosas nuevas, Pruebas existentes, Pruebas nuevas, Archivos modificados y Creados).
+   - Entregar el bloque completo de **Comandos Estandarizados de Git** (commits semánticos atómicos, merge `--no-ff` a `develop` y verificación de árbol limpio).
+   - Mostrar el árbol de commits (`git log -n 5 --graph --oneline`) y `git status` limpio.

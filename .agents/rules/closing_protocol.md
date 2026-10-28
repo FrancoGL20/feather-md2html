@@ -20,19 +20,20 @@ Esta regla es de cumplimiento **obligatorio** para todo agente al finalizar una 
 
 ---
 
-## 3. Protocolo de Cierre de Tarea (Los 5 Pasos Obligatorios)
+## 3. Protocolo de Cierre de Ticket (Los 5 Pasos Obligatorios)
 
-Al terminar cualquier requerimiento o antes de dar por cerrada una sesión:
+> [!IMPORTANT]
+> **Modelo de Trabajo por Tickets:** A partir de ahora, **toda nueva tarea, requerimiento, corrección o mejora solicitada por el usuario es tratada formalmente como un Ticket**. Todo ticket debe concluir obligatoriamente con el **Resumen Estandarizado de Cierre** y los **Comandos Git Estandarizados**.
+
+Al terminar cualquier ticket o antes de dar por cerrada una sesión:
 
 ```mermaid
 graph TD
     A[1. Purga y Limpieza] --> B[2. Aislamiento de Config/Runtime]
     B --> C[3. Ejecución de Tests Exhaustivos]
-    C --> D[4. Revisión de Diff y Commit Semántico]
-    D --> E[5. Retrospectiva y Propuesta de Auto-mejora]
-    E --> F{¿Aprobado por Usuario?}
-    F -- Sí --> G[Actualizar Reglas y Contexto]
-    F -- No / Ajustar --> H[Cierre de Sesión Limpio]
+    C --> D[4. Revisión de Diff y Commits Semánticos]
+    D --> E[5. Resumen Estandarizado y Comandos Git]
+    E --> F[6. Retrospectiva de Auto-mejora]
 ```
 
 1. **Paso 1: Purga y Limpieza de Basura:**
@@ -41,16 +42,22 @@ graph TD
 2. **Paso 2: Aislamiento de Configuración:**
    - Confirmar que ningún archivo local (como `config.json`) esté staged para commit.
 3. **Paso 3: Validación Doble (Quality Gates):**
-   - Ejecutar suite rápida: `python verify_app.py` (9/9 checks).
-   - Ejecutar suite integral: `python run_tests.py` (85/85 tests).
+   - Ejecutar suite rápida: `python verify_app.py` (10/10 checks).
+   - Ejecutar suite integral: `python run_tests.py` (100% éxito en todos los tests).
    - 100% de éxito requerido antes de hacer commit.
-4. **Paso 4: Revisión de Diff y Commit Semántico:**
-   - Inspeccionar `git diff --staged`.
-   - Realizar commit con formato Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`).
-5. **Paso 5: Retrospectiva de Auto-mejora Continua (Obligatoria):**
-   - El agente debe hacer un auto-análisis reflexivo de la tarea realizada:
-     - ¿Se produjo alguna fricción o paso repetitivo que pueda automatizarse?
-     - ¿Se descubrió un nuevo patrón o convención que deba estandarizarse?
-     - ¿Hay código, estilos o pruebas que puedan optimizarse a futuro?
-   - **Formular propuestas concretas al usuario** al final del turno.
-   - Solo tras la confirmación del usuario, plasmar esas mejoras en `.agents/rules/` y `AGENTS.md`.
+4. **Paso 4: Revisión de Diff y Commits Semánticos:**
+   - Inspeccionar `git diff` y `git status`.
+   - Estructurar commits con formato Conventional Commits (`feat:`, `test:`, `docs:`, `fix:`, `chore:`).
+5. **Paso 5: Entrega Final Obligatoria (Resumen Estandarizado de Cierre de Ticket):**
+   Como último paso de respuesta al usuario, el agente **DEBE SIEMPRE** proporcionar un resumen estandarizado con la siguiente estructura fija:
+   - **📋 Resumen de Cambios:** Explicación técnica clara y concisa de las modificaciones realizadas.
+   - **✨ Cosas Nuevas Incorporadas:** Nuevos módulos, dependencias offline, sintaxis soportadas o características añadidas.
+   - **🧪 Pruebas Existentes Ejecutadas:** Total de pruebas previas verificadas con 100% de éxito (0 regresiones).
+   - **🔬 Pruebas Nuevas Añadidas:** Detalle exhaustivo de las nuevas pruebas unitarias/integración creadas para el ticket.
+   - **📂 Archivos Modificados y Creados:** Lista de archivos con etiquetas `[NEW]`, `[MODIFY]`, `[DELETE]`.
+   - **💻 Comandos Estandarizados de Git:** Bloque de comandos listo para copiar/ejecutar con:
+     1. Creación/cambio a rama de feature si aplica (`git checkout -b feature/<nombre>`).
+     2. `git add` y `git commit` semánticos atómicos (`feat:`, `test:`, `docs:`).
+     3. Cambio a `develop`, integración `git merge --no-ff feature/<nombre>` y eliminación de rama local.
+6. **Paso 6: Retrospectiva de Auto-mejora Continua:**
+   - Identificar fricciones, patrones a estandarizar o mejoras arquitectónicas para el siguiente ticket.
