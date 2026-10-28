@@ -633,6 +633,174 @@ class TestIndexMetadataCaching(unittest.TestCase):
         self.assertNotIn("doc3.html", cache_after)
 
 
+class TestLatexMathRendering(IsolatedEnvironmentTestCase):
+    """
+    Suite de pruebas exhaustiva para el soporte y renderizado nativo de fórmulas
+    matemáticas LaTeX (Display Math $$...$$ e Inline Math $...$).
+    Valida:
+    1. Parseo correcto de fórmulas de bloque y en línea del usuario.
+    2. Preservación intacta de subíndices (_) y asteriscos (*) sin interferencia de Markdown.
+    3. Protección contra signos de dólar monetarios y escapados ($50 USD, \\$12,000,000).
+    4. Soporte para bloques multilínea y bloques de código ```math.
+    5. Inmunidad del detector de títulos inteligentes frente a fórmulas al inicio.
+    6. Inyección autónoma del runtime MathJax 3 100% offline (sin CDNs).
+    7. Omisión total de scripts en documentos sin matemáticas (Zero-Bloatware).
+    8. Estilos CSS de alta definición para .math-block y .math-inline.
+    """
+
+    def test_user_examples_block_and_inline(self):
+        md = r"""# Reporte Financiero
+
+$$\text{Rate Per Unit} = 9,999,999 \quad \text{y} \quad \text{Base Charge} = 2,000,001 \quad \Longrightarrow \quad \text{Total Liquidado} = \$12,000,000 \text{ COP}$$
+
+El valor liquidado fue $\text{Valor AR} = \text{Flete Pactado Base} + \text{Intermediación EDINSA (\%)}$.
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        body = parsed["body"]
+
+        # Bloque matemático
+        self.assertIn('class="math-block" id="math-block-1"', body)
+        self.assertIn(r"\text{Rate Per Unit} = 9,999,999 \quad \text{y}", body)
+        self.assertIn(r"\Longrightarrow \quad \text{Total Liquidado} = \$12,000,000 \text{ COP}", body)
+
+        # Fórmula en línea
+        self.assertIn('class="math-inline"', body)
+        self.assertIn(r"$\text{Valor AR} = \text{Flete Pactado Base} + \text{Intermediación EDINSA (\%)}$", body)
+
+    def test_subscripts_and_multiplication_not_mangled_by_markdown(self):
+        md = r"""# Álgebra
+Fórmula con subíndices: $x_1 + x_2 = y_{total}$.
+Fórmula con multiplicación: $a * b * c = d$.
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        body = parsed["body"]
+
+        # No debe haber etiquetas <em> dentro de las variables
+        self.assertNotIn("x<em>", body)
+        self.assertNotIn("y</em>", body)
+        self.assertIn(r"$x_1 + x_2 = y_{total}$", body)
+        self.assertIn(r"$a * b * c = d$", body)
+
+    def test_currency_defense_dollars_preserved(self):
+        md = r"""# Presupuesto
+El costo es $50 USD y el otro es $100 USD.
+Precio neto: \$12,000,000 COP.
+"""
+        parsed = md_engine.parse_markdown(md)
+        body = parsed["body"]
+
+        # No debe clasificar montos de moneda ordinarios como matemáticas
+        self.assertNotIn('class="math-inline"', body)
+        self.assertNotIn('class="math-block"', body)
+        self.assertIn("$50 USD y el otro es $100 USD.", body)
+
+    def test_multiline_display_math(self):
+        md = r"""# Ecuaciones de Maxwell
+$$
+\nabla \cdot \mathbf{E} = \frac{\rho}{\varepsilon_0} \\
+\nabla \cdot \mathbf{B} = 0
+$$
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        body = parsed["body"]
+
+        self.assertIn('class="math-block" id="math-block-1"', body)
+        self.assertIn(r"\nabla \cdot \mathbf{E}", body)
+        self.assertIn(r"\nabla \cdot \mathbf{B} = 0", body)
+
+    def test_fenced_code_block_math(self):
+        md = """# Cálculo
+```math
+\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}
+```
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        body = parsed["body"]
+
+        self.assertIn('class="math-block" id="math-block-1"', body)
+        self.assertIn(r"\int_{0}^{\infty}", body)
+
+    def test_smart_title_does_not_steal_math_formula(self):
+        md = r"""$$\text{Rate Per Unit} = 9,999,999 \quad \text{y} \quad \text{Base Charge} = 2,000,001 \quad \Longrightarrow \quad \text{Total Liquidado} = \$12,000,000 \text{ COP}$$
+
+$\text{Valor AR} = \text{Flete Pactado Base} + \text{Intermediación EDINSA (\%)}$
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        # El título no debe ser la fórmula ni un token
+        self.assertNotIn(r"\text{Rate Per Unit}", parsed["title"])
+        self.assertNotIn("MATH", parsed["title"])
+        # Ambas fórmulas deben estar en el cuerpo
+        self.assertIn('class="math-block"', parsed["body"])
+        self.assertIn('class="math-inline"', parsed["body"])
+
+    def test_bracket_and_parentheses_delimiters(self):
+        md = r"""# Notación TeX Alternativa
+Ecuación en corchetes: \[ E = mc^2 \]
+Ecuación en paréntesis: \( e^{i\pi} + 1 = 0 \)
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        body = parsed["body"]
+
+        self.assertIn('class="math-block"', body)
+        self.assertIn(r"E = mc^2", body)
+        self.assertIn('class="math-inline"', body)
+        self.assertIn(r"e^{i\pi} + 1 = 0", body)
+
+    def test_mathjax_runtime_inlined_offline_when_present(self):
+        md = r"""# Documento Con Fórmulas
+$$\text{Total} = 100$$
+"""
+        res = md_engine.convert_and_update_library(md, str(self.test_root), "Doc Con Matematicas")
+        self.assertTrue(res["success"])
+        html_path = Path(res["file_path"])
+        self.assertTrue(html_path.exists())
+
+        with open(html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Verifica configuración y runtime inyectados
+        self.assertIn("window.MathJax", content)
+        self.assertIn("inlineMath", content)
+        self.assertIn("displayMath", content)
+        # Verifica ausencia total de llamadas a CDNs y scripts remotos (Zero-Bloatware / 100% Offline)
+        self.assertNotIn('<script src="http', content)
+        self.assertNotIn('<link rel="stylesheet" href="http', content)
+        self.assertNotIn('src="https://cdn.jsdelivr.net', content)
+        self.assertNotIn('src="https://cdnjs.cloudflare.com', content)
+        self.assertNotIn('src="https://unpkg.com', content)
+
+    def test_mathjax_runtime_omitted_when_no_math_zero_bloatware(self):
+        md = """# Documento Regular
+Este documento no contiene fórmulas matemáticas.
+- Item 1
+- Item 2
+"""
+        res = md_engine.convert_and_update_library(md, str(self.test_root), "Doc Sin Matematicas")
+        self.assertTrue(res["success"])
+        html_path = Path(res["file_path"])
+
+        with open(html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # MathJax no debe inyectarse
+        self.assertNotIn("window.MathJax", content)
+        # Archivo debe ser ligero (< 50 KB)
+        self.assertLess(html_path.stat().st_size, 50000)
+
+    def test_math_css_styles_and_print_rules(self):
+        self.assertIn(".math-block {", md_engine.COMMON_STYLES)
+        self.assertIn(".math-inline {", md_engine.COMMON_STYLES)
+        self.assertIn("mjx-container[jax=\"SVG\"]", md_engine.COMMON_STYLES)
+        # Regla de impresión
+        self.assertIn("background: transparent !important;", md_engine.COMMON_STYLES)
+
+
 if __name__ == "__main__":
     unittest.main()
 
