@@ -3,13 +3,13 @@
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue?logo=windows)](https://microsoft.com)
 [![Python: 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)](https://python.org)
 [![Zero Bloatware](https://img.shields.io/badge/Dependencies-Zero%20(Stdlib%20Only)-success)](#arquitectura-tecnica-y-principios-de-diseno)
-[![Tests: 126 Passing](https://img.shields.io/badge/Tests-126%2F126%20Passing-brightgreen)](#pruebas-automatizadas-y-calidad-de-codigo)
-[![Architecture: Chromium App Mode](https://img.shields.io/badge/Engine-Chromium%20App%20Mode-orange)](#arquitectura-tecnica-y-principios-de-diseno)
-[![System Tray: Native Win32](https://img.shields.io/badge/System%20Tray-Native%20Win32-purple)](#integracion-en-el-system-tray-y-guardián-de-instancia-unica)
+[![Architecture: Hexagonal](https://img.shields.io/badge/Architecture-Hexagonal%20(Ports%20%26%20Adapters)-informational)](#estructura-del-proyecto)
+[![Tests: 140 Passing](https://img.shields.io/badge/Tests-140%2F140%20Passing-brightgreen)](#pruebas-automatizadas-y-calidad-de-codigo)
+[![System Tray: Native Win32](https://img.shields.io/badge/System%20Tray-Native%20Win32-purple)](#integracion-en-el-system-tray-y-guardian-de-instancia-unica)
 
 Aplicacion de escritorio nativa para Windows disenada para la transformacion ultra-rapida (<20 ms) de documentos Markdown a paginas HTML autonomas, responsivas y completamente portables. 
 
-Construida bajo una filosofia estricta de **cero dependencias externas (Zero-Bloatware)**, renderizado acelerado por hardware mediante el modo aplicacion de Chromium y una interfaz visual basada en la paleta mate **Ambar Volcanico y Negro Obsidiana (Volcanic Amber & Deep Obsidian)**.
+Construida bajo una **Arquitectura Hexagonal Pragmatica (Puertos y Adaptadores)** con una filosofia estricta de **cero dependencias externas (Zero-Bloatware)**, renderizado acelerado por hardware mediante el modo aplicacion de Chromium y una interfaz visual basada en la paleta mate **Ambar Volcanico y Negro Obsidiana (Volcanic Amber & Deep Obsidian)**.
 
 ---
 
@@ -26,10 +26,11 @@ Construida bajo una filosofia estricta de **cero dependencias externas (Zero-Blo
 - [Flujos de Trabajo y Uso](#flujos-de-trabajo-y-uso)
   - [Conversion de Texto y Portapapeles (Zero-Prompts)](#conversion-de-texto-y-portapapeles-zero-prompts)
   - [Conversion desde Archivo (Drag and Drop)](#conversion-desde-archivo-drag-and-drop)
-  - [Diagramas Mermaid 100% Offline](#diagramas-mermaid-100-offline)
+  - [Diagramas Mermaid y Formulas LaTeX 100% Offline](#diagramas-mermaid-y-formulas-latex-100-offline)
   - [Navegacion Cruzada y Biblioteca de Documentos](#navegacion-cruzada-y-biblioteca-de-documentos)
   - [Diagnostico y Visor de Registros](#diagnostico-y-visor-de-registros)
 - [Arquitectura Tecnica y Principios de Diseno](#arquitectura-tecnica-y-principios-de-diseno)
+  - [Arquitectura Hexagonal (Ports & Adapters)](#arquitectura-hexagonal-ports--adapters)
   - [Filosofia Zero-Bloatware](#filosofia-zero-bloatware)
   - [Modo Aplicacion Chromium](#modo-aplicacion-chromium)
   - [Ciclo de Vida y Watchdog Defensivo](#ciclo-de-vida-y-watchdog-defensivo)
@@ -49,9 +50,10 @@ Construida bajo una filosofia estricta de **cero dependencias externas (Zero-Blo
 La mayoria de herramientas contemporaneas para previsualizar y convertir Markdown incorporan entornos pesados basados en Electron o requieren cadenas de herramientas complejas (`npm`, `pip`, compiladores C++ o servicios en la nube). Este proyecto resuelve esa problematica con una arquitectura hibrida minimalista:
 
 1. **Velocidad Extrema (< 20 ms por documento):** El analizador lexico y sintactico procesa el contenido linea por linea en una sola pasada usando expresiones regulares compiladas sobre la biblioteca estandar de Python.
-2. **Cero Dependencias de Paquetes (Zero-Bloatware):** No requiere `pip install`, ni entornos virtuales `venv`, ni `node_modules`. Todo el sistema funciona con modulos nativos incluidos en el runtime de Python (`http.server`, `urllib`, `json`, `ctypes`, `pathlib`, `re`, `socket`, `threading`).
-3. **Ejecucion Nativa y Silenciosa:** Sin consolas negras de terminal visibles para el usuario final gracias a la integracion con `pythonw.exe`.
-4. **Documentos Autocontenidos:** Cada archivo HTML generado es 100% independiente; incluye estilos CSS completos, tipografias del sistema, logica interactiva y, cuando corresponde, el runtime offline de Mermaid inyectado directamente. No requiere conexion a internet ni CDNs externos.
+2. **Cero Dependencias de Paquetes (Zero-Bloatware):** No requiere `pip install`, ni entornos virtuales `venv`, ni `node_modules`. Todo el sistema funciona con modulos nativos incluidos en el runtime de Python (`dataclasses`, `typing`, `http.server`, `urllib`, `json`, `ctypes`, `pathlib`, `re`, `socket`, `threading`).
+3. **Arquitectura Hexagonal Limpia:** Separacion estricta entre la logica de dominio y compilacion (`md2html/core/`), los adaptadores de infraestructura (`md2html/adapters/` para HTTP, almacenamiento y APIs Win32) y las plantillas desacopladas (`md2html/templates/`).
+4. **Ejecucion Nativa y Silenciosa:** Sin consolas negras de terminal visibles para el usuario final gracias a la integracion con `pythonw.exe`.
+5. **Documentos Autocontenidos:** Cada archivo HTML generado es 100% independiente; incluye estilos CSS completos, tipografias del sistema, logica interactiva y, cuando corresponde, los runtimes offline de Mermaid y MathJax 3 SVG inyectados directamente. No requiere conexion a internet ni CDNs externos.
 
 ---
 
@@ -62,7 +64,7 @@ La mayoria de herramientas contemporaneas para previsualizar y convertir Markdow
 - **Entrada Flexible:** Area de edicion con atajos rapidos (`Ctrl + Enter` para convertir, `Ctrl + Shift + V` para pegar y convertir), conteo de palabras y tiempo estimado de lectura en tiempo real.
 - **Soporte Drag and Drop:** Arrastre de archivos `.md`, `.markdown` o `.txt` directamente sobre la interfaz o seleccion mediante el explorador nativo de Windows.
 - **Acceso Directo al Portapapeles (Zero-Prompts):** Lectura instantanea de memoria via API Win32 a traves del backend, evitando los dialogos invasivos de solicitud de permisos del navegador.
-- **Diagramas Mermaid Offline e Interactivos:** Deteccion automatica de bloques ```` ```mermaid ```` con renderizado SVG centrado, alternador de codigo fuente con un clic y boton para copiar la definicion con confirmacion visual.
+- **Diagramas Mermaid y Formulas Matematicas LaTeX 100% Offline:** Deteccion automatica de bloques ```` ```mermaid ```` y expresiones matematicas LaTeX (`$$...$$`, `$...$`, `\[...\]`, `\(...\)`) con renderizado vectorial SVG autonomo sin requerir internet.
 - **Biblioteca Dinamica con Indice Cronologico (`index.html`):** Organizacion automatica de documentos desde el mas nuevo hasta el mas viejo, con buscador reactivo integrado en el cliente.
 - **Puntero al Documento Mas Reciente (`latest.html`):** Redireccion automatica y enlace permanente para abrir de inmediato la ultima conversion generada.
 - **Navegacion Cruzada Superior:** Todos los documentos generados integran una barra flotante para saltar al indice de documentos, al documento mas reciente o alternar entre tema oscuro y claro.
@@ -80,7 +82,7 @@ La mayoria de herramientas contemporaneas para previsualizar y convertir Markdow
 | **Python** | Python 3.8+ | Python 3.10+ | No requiere permisos de administrador ni `pip` |
 | **Navegador** | Microsoft Edge | Microsoft Edge / Chrome | Preinstalado de forma nativa en Windows 10/11 |
 | **PowerShell** | PowerShell 5.1+ | PowerShell 5.1+ | Integrado en el sistema operativo |
-| **Espacio en Disco** | < 15 MB | < 20 MB | Incluyendo runtime de Mermaid y assets |
+| **Espacio en Disco** | < 15 MB | < 20 MB | Incluyendo runtimes de Mermaid, MathJax y assets |
 
 ---
 
@@ -156,14 +158,7 @@ La aplicacion fue disenada para funcionar de forma inmediata al transferirse ent
    - Si la carpeta destino no existe fisicamente, el sistema la crea de forma segura en la primera ejecucion.
 
 3. **Purga Automatica de Archivos Fantasma:**
-   Si se transfiere un archivo `config.json` que contiene un historial de documentos generados en otra maquina, `app.py` valida la existencia fisica de cada archivo en disco al arrancar y depura silenciosamente aquellos que no existan, evitando enlaces rotos.
-
-### Pasos para Migrar la Aplicacion en 10 Segundos
-
-1. Comprime la carpeta `MarkdownToHTML_App` en un archivo `.zip` (o descargala del repositorio).
-2. En la nueva computadora con Windows, descomprime la carpeta en la ubicacion deseada.
-3. Haz doble clic en `instalar.bat` (o en `launch.vbs` para modo portable).
-4. La aplicacion estara operativa de inmediato, lista para convertir y organizar documentos.
+   Si se transfiere un archivo `config.json` que contiene un historial de documentos generados en otra maquina, el repositorio de configuracion valida la existencia fisica de cada archivo en disco al arrancar y depura silenciosamente aquellos que no existan, evitando enlaces rotos.
 
 ---
 
@@ -176,7 +171,7 @@ La aplicacion fue disenada para funcionar de forma inmediata al transferirse ent
    - O haz clic en **Pegar y Convertir** (o presiona `Ctrl + Shift + V`) para realizar ambas acciones en un solo paso.
    - La lectura se ejecuta a nivel de sistema operativo mediante la API Win32 del backend, por lo que el navegador **no mostrara advertencias emergentes solicitando permisos**.
 2. **Convertir:**
-   - Presiona el boton **Convertir Markdown a HTML** o utiliza el atajo `Ctrl + Enter`.
+   - Presiona el boton **Convertir Actual** o utiliza el atajo `Ctrl + Enter`.
 3. **Acciones Inmediatas:**
    - **Abrir Documento:** Muestra el archivo generado en tu navegador predeterminado.
    - **Copiar Enlace:** Copia al portapapeles la ruta `file:///...` lista para compartir o archivar.
@@ -188,32 +183,30 @@ La aplicacion fue disenada para funcionar de forma inmediata al transferirse ent
 
 1. Arrastra un archivo `.md`, `.markdown` o `.txt` y sueltalo dentro de la zona delimitada de la interfaz.
 2. O haz clic en **Examinar Archivo (.md)** para elegirlo mediante el selector nativo de Windows.
-3. Haz clic en **Convertir Archivo Seleccionado**.
+3. Haz clic en **Convertir Actual**.
 
 ---
 
-### Diagramas Mermaid 100% Offline
+### Diagramas Mermaid y Formulas LaTeX 100% Offline
 
-Puedes incluir cualquier diagrama compatible con Mermaid encerrandolo en bloques de codigo con la etiqueta `mermaid`:
+Puedes incluir cualquier diagrama compatible con Mermaid encerrandolo en bloques de codigo con la etiqueta `mermaid`, asi como expresiones matematicas en bloque (`$$...$$`) o en linea (`$...$`):
 
 ````markdown
 ```mermaid
 graph TD
-    A[Markdown Fuente] --> B(Compilador md_engine.py)
-    B --> C{Tiene Mermaid?}
-    C -- Si --> D[Inyectar Runtime Local assets/mermaid.min.js]
+    A[Markdown Fuente] --> B(Compilador md2html.core.compiler)
+    B --> C{Tiene Mermaid / Math?}
+    C -- Si --> D[Inyectar Runtime Local Offline]
     C -- No --> E[Generar HTML Ultraligero < 50 KB]
     D --> F[Documento HTML Autonomo]
     E --> F
 ```
 ````
 
-**Funcionalidades del bloque Mermaid generado:**
-- **Tarjeta Responsiva:** Cabecera con titulo `DIAGRAMA MERMAID` e icono vectorial.
-- **Visor de Codigo:** Boton **Ver codigo** / **Ocultar codigo** para inspeccionar la fuente sintactica sin salir del documento.
-- **Boton Copiar:** Copia el codigo del diagrama al portapapeles con confirmacion visual (`✓ Copiado`).
-- **Sincronizacion de Tema:** Al cambiar entre tema oscuro y claro en la barra de navegacion superior, los diagramas se recompilan en caliente con la paleta de colores adecuada.
-- **Optimizacion de Tamano (Zero-Bloat):** Si el documento no incluye diagramas Mermaid, se omite por completo la inclusion del bundle JavaScript, preservando archivos ligeros (< 50 KB) y compilaciones en < 20 ms.
+**Funcionalidades integradas:**
+- **Tarjeta Responsiva Mermaid:** Cabecera con titulo `DIAGRAMA MERMAID`, visor de codigo fuente interactivo y boton de copiado con confirmacion visual (`✓ Copiado`).
+- **Formulas Matematicas Vectoriales:** Renderizado SVG nitido mediante MathJax 3 offline (`assets/tex-svg.min.js`) adaptable automaticamente al color del texto del tema activo.
+- **Optimizacion de Tamano (Zero-Bloat):** Si el documento no incluye diagramas Mermaid ni formulas matematicas, se omiten por completo los bundles JavaScript, preservando archivos ligeros (< 50 KB) y compilaciones en < 20 ms.
 
 ---
 
@@ -229,50 +222,26 @@ Cada pagina HTML generada incorpora una barra superior flotante:
 ### Diagnostico y Visor de Registros
 
 La aplicacion mantiene un registro de operacion defensivo en `debug_log.txt`:
-- Puedes presionar el boton **Ver Logs** en la cabecera de la aplicacion para consultar en pantalla los eventos mas recientes del servidor.
+- Puedes presionar el boton de registros en la cabecera de la aplicacion para consultar en pantalla los eventos mas recientes del servidor.
 - Haz clic en **Abrir archivo de log** para abrir `debug_log.txt` directamente en el Bloc de notas o editor predeterminado del sistema.
 
 ---
 
 ## Arquitectura Tecnica y Principios de Diseno
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Usuario
-    participant Acceso as Acceso Directo (.lnk)
-    participant PythonW as pythonw.exe (Backend)
-    participant Server as HTTP Server (127.0.0.1:51870)
-    participant Edge as Microsoft Edge (--app)
-    participant Engine as md_engine.py
-    participant Disk as Biblioteca Local (HTMLs)
+### Arquitectura Hexagonal (Ports & Adapters)
 
-    Usuario->>Acceso: Doble clic
-    Acceso->>PythonW: Ejecuta app.py en segundo plano
-    PythonW->>Server: Inicia HTTPServer en puerto preferido 51870
-    PythonW->>Edge: Lanza msedge.exe --app="http://127.0.0.1:51870"
-    Edge->>Server: GET / (Carga ui/index.html)
-    Server-->>Edge: Retorna SPA en tema Volcanic Amber
-    Edge->>Server: POST /api/heartbeat (Cada 3.5s via Web Worker)
-
-    Usuario->>Edge: Clic en "Pegar y Convertir"
-    Edge->>Server: GET /api/clipboard (Win32 API directa)
-    Server-->>Edge: Retorna texto del portapapeles sin permisos
-    Edge->>Server: POST /api/convert {text, auto_open}
-    Server->>Engine: convert_and_update_library()
-    Engine->>Disk: Escribe [slug].html con navegacion cruzada
-    Engine->>Disk: Actualiza index.html (Catalogo cronologico)
-    Engine->>Disk: Actualiza latest.html (Puntero al mas reciente)
-    Server-->>Edge: JSON {success, file_url, title, index_url}
-    
-    opt Si auto_open = true
-        Server->>Usuario: Abre documento en el navegador predeterminado
-    end
-```
+El proyecto aplica **Arquitectura Hexagonal Pragmatica** en el paquete `md2html/`:
+1. **Capa de Dominio y Aplicacion (`md2html/core/`):** Contiene los modelos de datos inmutables/tipados (`@dataclass` en `models.py`), las interfaces de puertos (`typing.Protocol` en `ports.py`), el compilador modular (`compiler/`) y los casos de uso (`services/`). No importa `http.server`, `ctypes` ni `tkinter`.
+2. **Capa de Adaptadores (`md2html/adapters/`):**
+   - `http/`: Enrutador declarativo (`HttpRouter`) y controlador HTTP (`AppRequestHandler`).
+   - `storage/`: Repositorio JSON de configuracion (`JsonConfigRepository`), cache de metadatos (`.index_cache.json`) y logger.
+   - `os_win32/`: Integracion nativa con Windows mediante `ctypes` (System Tray, portapapeles, mutex de instancia unica, geometria y rastreo de ventana HWND).
+3. **Capa de Plantillas (`md2html/templates/`):** Archivos `.html`, `.css` y `.js` puros cargados en memoria RAM con cache para ensamblar documentos compilados sin cadenas gigantes incrustadas en Python.
 
 ### Filosofia Zero-Bloatware
 
-A diferencia de las arquitecturas empaquetadas basadas en Electron o frameworks web pesados, esta aplicacion no agrega ninguna capa de abstraccion innecesaria. No utiliza paquetes de terceros: no requiere `pip`, ni `flask`, ni `fastapi`, ni librerias de compilacion externas. Todo el servidor HTTP y el procesador de Markdown operan con modulos nativos del interprete de Python.
+A diferencia de las arquitecturas empaquetadas basadas en Electron o frameworks web pesados, esta aplicacion no agrega ninguna capa de abstraccion externa. No utiliza paquetes de terceros: no requiere `pip`, ni `flask`, ni `fastapi`, ni librerias de compilacion externas. Todo el servidor HTTP y el procesador de Markdown operan con modulos nativos del interprete de Python.
 
 ### Modo Aplicacion Chromium
 
@@ -281,8 +250,6 @@ La interfaz de usuario se despliega utilizando la instancia de Microsoft Edge (o
 ```cmd
 msedge.exe --app="http://127.0.0.1:51870" --window-size=750,680 ...
 ```
-
-Esto proporciona aceleracion completa por hardware, soporte para estilos CSS modernos (`backdrop-filter: blur`, variables CSS, grid/flexbox) y tipografia de ultra-alta definicion en una ventana independiente, limpia y sin distracciones de navegacion.
 
 ### Ciclo de Vida y Watchdog Defensivo
 
@@ -293,31 +260,19 @@ Para evitar que procesos de Python queden huerfanos en memoria:
 
 ### Integracion en el System Tray y Guardian de Instancia Unica
 
-La aplicacion implementa soporte completo para la bandeja del sistema (area de notificacion de Windows junto al reloj) mediante el modulo nativo `tray_manager.py`:
+La aplicacion implementa soporte completo para la bandeja del sistema (area de notificacion de Windows junto al reloj):
 
 - **Cero Dependencias Externas (Win32 ctypes):** Control directo mediante `Shell_NotifyIconW` en `shell32.dll` y `user32.dll` sobre un hilo daemon dedicado (`SystemTrayThread`).
-- **Ahorro de Memoria y Reapertura Ultrarrapida (< 200 ms):** Al cerrar la ventana con la `X`, Microsoft Edge se cierra (liberando ~150 MB de memoria RAM), mientras `pythonw.exe` permanece en reposo en la bandeja consumiendo apenas ~14 a 18 MB de RAM y 0% de CPU. Al pulsar el icono con un clic o doble clic, la ventana se restaura o relanza de inmediato sin demoras de inicio frio.
-- **Menu Contextual Nativo (Clic Derecho):** Incluye accesos directos a *📌 Abrir Markdown to HTML*, *📂 Abrir Carpeta de Documentos*, *📚 Ver Biblioteca (index.html)* y *❌ Salir completamente*.
-- **Notificacion en Globo Informativa (Balloon Tip):** Al enviar la app a la bandeja por primera vez, muestra un globo informativo nativo de Windows confirmando que la app sigue disponible en segundo plano.
-- **Guardian de Instancia Unica (*Single Instance Guard*):** Protegido mediante un Named Mutex de Windows (`Local\MarkdownToHTML_App_SingleInstance_Mutex`). Si el usuario vuelve a dar doble clic al acceso directo cuando la app ya esta en la bandeja, la nueva instancia despierta la app activa mediante `/api/open-app` y finaliza de inmediato, evitando procesos o iconos duplicados.
+- **Ahorro de Memoria y Reapertura Ultrarrapida (< 200 ms):** Al cerrar la ventana con la `X`, Microsoft Edge se cierra (liberando ~150 MB de memoria RAM), mientras `pythonw.exe` permanece en reposo en la bandeja consumiendo apenas ~14 a 18 MB de RAM y 0% de CPU.
+- **Guardian de Instancia Unica (*Single Instance Guard*):** Protegido mediante un Named Mutex de Windows (`Local\MarkdownToHTML_App_SingleInstance_Mutex`).
 
 ### Integracion Win32 para Portapapeles
 
-Los navegadores basados en Chromium exigen confirmacion explicita del usuario cada vez que una pagina web intenta leer el portapapeles mediante la API web `navigator.clipboard.readText()`. 
-
-Para erradicar este mensaje:
-1. El frontend consulta el endpoint `/api/clipboard`.
-2. El servidor en `app.py` utiliza la API Win32 de Windows (`OpenClipboard`, `GetClipboardData` con formato `CF_UNICODETEXT`, `GlobalLock` y `GlobalUnlock` de 64 bits mediante `ctypes`).
-3. El contenido se lee en memoria en menos de 1 milisegundo y se retorna como JSON al frontend sin disparar alertas ni solicitar permisos adicionales.
+El frontend consulta el endpoint `/api/clipboard` y el adaptador `md2html/adapters/os_win32/clipboard.py` utiliza la API Win32 de Windows (`OpenClipboard`, `GetClipboardData` con formato `CF_UNICODETEXT`, `GlobalLock` y `GlobalUnlock` de 64 bits mediante `ctypes`), leyendo el portapapeles en menos de 1 milisegundo sin disparar alertas del navegador.
 
 ### Cache Inteligente contra Bloqueo de Antivirus
 
-Cuando se generan documentos que incluyen diagramas Mermaid, el archivo HTML almacena el script embebido de Mermaid (~2.8 MB) para mantener la portabilidad offline. Al escanear la biblioteca para regenerar `index.html`, Windows Defender o programas antivirus pueden ralentizar la lectura repetitiva de archivos pesados.
-
-Para solventar esto:
-- La aplicacion implementa una cache persistente de metadatos en `.index_cache.json`.
-- Cada archivo se identifica por una clave compuesta `(filename, mtime, size_kb)`.
-- Si el archivo no ha sufrido modificaciones en disco, su titulo y metadatos se recuperan desde la cache en memoria **sin abrir el archivo fisico**, logrando una regeneracion del indice instantanea (< 5 ms).
+La aplicacion implementa una cache persistente de metadatos en `.index_cache.json` (`md2html/adapters/storage/index_cache.py`) identificada por `(filename, mtime, size_kb)`, evitando reabrir archivos HTML pesados con scripts embebidos y logrando regeneraciones del indice en < 5 ms.
 
 ---
 
@@ -326,9 +281,46 @@ Para solventar esto:
 ```text
 MarkdownToHTML_App/
 │
-├── app.py                     # Servidor HTTP local, API REST y orquestador de ventana nativa
-├── tray_manager.py            # Administrador nativo del System Tray de Windows (Win32 ctypes)
-├── md_engine.py               # Motor de compilacion de Markdown a HTML (sin dependencias)
+├── app.py                     # Punto de entrada del servidor HTTP y fachada retrocompatible
+├── md_engine.py               # Punto de entrada CLI y fachada del motor de compilacion
+├── math_engine.py             # Fachada retrocompatible del motor matematico LaTeX
+├── tray_manager.py            # Fachada retrocompatible del administrador del System Tray
+│
+├── md2html/                   # Paquete de Arquitectura Hexagonal (Ports & Adapters)
+│   ├── core/                  # Dominio, puertos (Protocol), compilador AST y casos de uso
+│   │   ├── models.py          # @dataclass: ParsedDocument, ConversionResult, WindowGeometry
+│   │   ├── ports.py           # Contratos de puertos desacoplados
+│   │   ├── compiler/          # Analizadores Markdown, AST de listas, inline, titulos y LaTeX
+│   │   └── services/          # Servicios de conversion, catalogo y ciclo de vida (watchdog)
+│   ├── adapters/              # Adaptadores de infraestructura
+│   │   ├── http/              # HttpRouter declarativo y AppRequestHandler
+│   │   ├── storage/           # Repositorio config.json, cache .index_cache.json y logger
+│   │   └── os_win32/          # Win32 ctypes: System Tray, portapapeles, mutex, HWND y dialogos
+│   └── templates/             # Plantillas HTML, hojas CSS y controladores JS de documentos
+│
+├── ui/                        # Interfaz grafica SPA modular (Volcanic Amber & Deep Obsidian)
+│   ├── index.html             # Estructura semantica HTML5
+│   ├── styles.css             # Tokens y estilos CSS3
+│   └── app.js                 # Logica cliente, atajos y Web Worker de latidos
+│
+├── tests/                     # Suite modular de pruebas con unittest nativo (140 tests)
+│   ├── __init__.py
+│   ├── test_helpers.py
+│   ├── test_md_engine.py      # 68 tests: AST, llamadas, tablas, kbd, listas, mermaid, latex, cache
+│   ├── test_app_api.py        # 27 tests: Endpoints REST, router, modelos, UI modular, tray, portapapeles
+│   ├── test_tray_manager.py   # 6 tests: Estructuras Win32, ciclo de vida del hilo, menus y globo
+│   ├── test_window_geometry.py# 7 tests: Dimensionamiento responsivo de ventana
+│   ├── test_config_and_history.py # 9 tests: Persistencia, limites y purga de fantasmas
+│   ├── test_installer_and_distribution.py # 15 tests: Integridad de instalador y accesos directos
+│   └── test_security.py       # 5 tests: Defensa contra Path Traversal, proteccion y XSS
+│
+├── assets/
+│   ├── app_icon.ico           # Icono nativo multirresolucion para Windows (256x256)
+│   ├── app_icon.png           # Isotipo oficial en alta resolucion
+│   ├── mermaid.min.js         # Runtime embebido offline de Mermaid (Mermaid 11.x)
+│   ├── tex-svg.min.js         # Runtime vectorial SVG de MathJax 3 (100% offline)
+│   └── generate_icon.ps1      # Generador vectorial del icono mediante System.Drawing
+│
 ├── config.template.json       # Plantilla limpia de configuracion rastreada en Git
 ├── config.json                # Configuracion local persistente (aislada en .gitignore)
 ├── instalar.bat               # Instalador rapido de 1 clic para Windows (%LOCALAPPDATA%)
@@ -336,55 +328,25 @@ MarkdownToHTML_App/
 ├── install_shortcuts.ps1      # Generador y eliminador de accesos directos de Windows
 ├── launch.vbs                 # Lanzador silencioso en VBScript (sin consola negra)
 ├── run.bat                    # Lanzador rapido por lotes
-├── run_tests.py               # Ejecutor maestro de la suite integral de pruebas (126 tests)
+├── run_tests.py               # Ejecutor maestro de la suite integral de pruebas (140 tests)
 ├── verify_app.py              # Suite rapida de verificacion de humo (10 checks)
 ├── README.md                  # Manual tecnico y documentacion del proyecto
-├── GIT_FLOW.md                # Estandar formal de ramas Git Flow y ciclo de ingenieria
-│
-├── tests/                     # Suite modular de pruebas con unittest nativo
-│   ├── __init__.py            # Inicializador del paquete de pruebas
-│   ├── test_helpers.py        # Entorno aislado en carpetas temporales y mocks
-│   ├── test_md_engine.py      # 58 tests: AST, llamadas, tablas, kbd, listas, mermaid, cache
-│   ├── test_app_api.py        # 23 tests: Endpoints REST, loopback real, tray, portapapeles, logs
-│   ├── test_tray_manager.py   # 6 tests: Estructuras Win32, ciclo de vida del hilo, menus y globo
-│   ├── test_window_geometry.py# 7 tests: Dimensionamiento responsivo de ventana
-│   ├── test_config_and_history.py # 9 tests: Persistencia, limites y purga de fantasmas
-│   ├── test_installer_and_distribution.py # 15 tests: Integridad de instalador y accesos directos
-│   └── test_security.py       # 5 tests: Defensa contra Path Traversal, proteccion y XSS
-│
-├── ui/
-│   └── index.html             # Interfaz grafica SPA (HTML5, CSS3, Vanilla JS sin frameworks)
-│
-└── assets/
-    ├── app_icon.ico           # Icono nativo multirresolucion para Windows (256x256)
-    ├── app_icon.png           # Isotipo oficial en alta resolucion
-    ├── mermaid.min.js         # Runtime embebido offline de Mermaid (Mermaid 11.x)
-    └── generate_icon.ps1      # Generador vectorial del icono mediante System.Drawing
+└── GIT_FLOW.md                # Estandar formal de ramas Git Flow y ciclo de ingenieria
 ```
 
 ---
 
 ## Pruebas Automatizadas y Calidad de Codigo
 
-El proyecto cuenta con una suite integral de **126 pruebas automatizadas** que validan la funcionalidad del compilador, la API REST, la seguridad, la persistencia, la bandeja del sistema, la geometria de pantalla y la distribucion del instalador:
+El proyecto cuenta con una suite integral de **140 pruebas automatizadas** que validan la funcionalidad del compilador, la arquitectura hexagonal, la API REST, la seguridad, la persistencia, la bandeja del sistema, la geometria de pantalla y la distribucion del instalador:
 
 ```powershell
-# Ejecutar suite integral completa (126 tests con metricas detalladas):
+# Ejecutar suite integral completa (140 tests con metricas detalladas):
 python run_tests.py
 
 # O ejecutar verificacion rapida de humo (10 checks):
 python verify_app.py
 ```
-
-### Cobertura de Pruebas
-
-- **`tests/test_md_engine.py` (58 tests):** Analizador lexico y sintactico, bloques Mermaid interactivos y offline, tokens de diseno de tema claro/oscuro, alertas GitHub con SVG, tablas con alineacion, atajos `[[kbd:...]]`, jerarquia de listas anidadas, badges de estado, slugify y cache inteligente de metadatos.
-- **`tests/test_app_api.py` (23 tests):** API REST del servidor HTTP sobre loopback real (`127.0.0.1`), codigos de estado HTTP, lectura nativa de portapapeles Win32, modo tray y endpoints `/api/open-app`, `/api/quit-app`, asignacion de puerto preferido y dinámico, servicio de assets estaticos, validacion de esquemas y logs.
-- **`tests/test_tray_manager.py` (6 tests):** Validacion de estructuras ctypes Win32 de 64 bits (`NOTIFYICONDATAW`), ciclo de vida de arranque y detencion del hilo, despacho asincrono de callbacks, proteccion defensiva de globo y fallback ante ausencia de icono.
-- **`tests/test_window_geometry.py` (7 tests):** Deteccion automatica de resolucion de pantalla (escritorio vs. laptop), dimensiones adaptativas y centrado nativo.
-- **`tests/test_config_and_history.py` (9 tests):** Persistencia de configuracion, recuperacion ante JSON corrupto, limite estricto de 10 elementos en el historial y purga automatica de archivos eliminados.
-- **`tests/test_installer_and_distribution.py` (15 tests):** Integridad sintactica de `instalar.bat` y `desinstalar.bat`, creacion y eliminacion de accesos directos `.lnk` y rutas con espacios.
-- **`tests/test_security.py` (5 tests):** Prevencion de Path Traversal en `/assets/`, proteccion contra eliminacion de archivos del sistema e inmunidad de `index.html` y `latest.html`, y sanitizacion contra ataques XSS.
 
 ---
 
@@ -405,15 +367,6 @@ Si en algun momento deseas remover la aplicacion del sistema:
 El desarrollo de este proyecto se rige estrictamente por el estandar **Git Flow** y la especificacion **Conventional Commits**:
 
 - Consulta la guia completa de ciclo de vida en [GIT_FLOW.md](file:///c:/General/MarkdownToHTML_App/GIT_FLOW.md).
-- **Ramas Principales:**
-  - `master`: Codigo en produccion y versiones estables publicadas.
-  - `develop`: Rama base para la integracion continua de caracteristicas.
-- **Ramas de Trabajo:**
-  - `feature/<nombre>`: Nuevas funcionalidades.
-  - `bugfix/<nombre>`: Correcciones de errores.
-  - `refactor/<nombre>`: Mejoras de arquitectura o rendimiento.
-  - `docs/<nombre>`: Actualizaciones de documentacion o reglas.
-  - `test/<nombre>`: Nuevas suites o casos de prueba.
 - **Requisito de Integracion:** Toda contribucion debe contar con cobertura de pruebas y alcanzar el **100% de exito (0 fallos)** en `run_tests.py` antes de fusionarse.
 
 ---
