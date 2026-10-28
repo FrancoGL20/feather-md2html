@@ -104,5 +104,28 @@ class TestTrayManager(unittest.TestCase):
         tray_manager.user32.DestroyIcon(hicon)
 
 
+    def test_tray_self_healing_reregisters_dropped_icon(self):
+        """Valida que el temporizador de salud re-registre un icono descartado por Explorer."""
+        tray = tray_manager.TrayManager(icon_path=self.icon_path, log_callback=self._log)
+        # Sin ventana oculta, la verificación debe ser un no-op seguro
+        tray._ensure_tray_icon()
+        self.assertFalse(tray.is_icon_added)
+
+        tray.start()
+        time.sleep(0.3)
+        try:
+            if not tray.is_icon_added:
+                self.skipTest("Bandeja de Windows no disponible en este entorno")
+            # Simula que Explorer descartó el icono sin avisar
+            tray_manager.shell32.Shell_NotifyIconW(
+                tray_manager.NIM_DELETE, ctypes.byref(tray._create_notify_icon_data())
+            )
+            tray._ensure_tray_icon()
+            self.assertTrue(tray.is_icon_added)
+            self.assertTrue(any("Re-registrando" in m for m in self.log_messages))
+        finally:
+            tray.stop()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -294,6 +294,70 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
         self.assertEqual(status_get, 200)
         self.assertIsNone(app.shutdown_scheduled_time)
 
+    def test_forced_quit_is_not_cancelled_by_client_activity(self):
+        """Salir completamente no debe ser cancelado por un latido o recarga posterior."""
+        try:
+            app.schedule_shutdown(10.0, force=True)
+            status, _, _ = self._http_post_json("/api/heartbeat")
+            self.assertEqual(status, 200)
+            self.assertIsNotNone(app.shutdown_scheduled_time)
+            status_get, _, _ = self._http_get("/api/config")
+            self.assertEqual(status_get, 200)
+            self.assertIsNotNone(app.shutdown_scheduled_time)
+        finally:
+            app.cancel_scheduled_shutdown()
+        self.assertIsNone(app.shutdown_scheduled_time)
+
+    def test_ui_heartbeat_worker_uses_absolute_url_and_grace_period(self):
+        """El Worker Blob requiere URL absoluta y la UI debe tolerar reposo antes de 'Reconectando'."""
+        js = (app.UI_DIR / "app.js").read_text(encoding="utf-8")
+        self.assertIn("location.origin", js)
+        self.assertIn("RECONNECT_GRACE_MS", js)
+        self.assertIn("e.persisted", js)
+
+    def test_app_request_handler_resolves_shared_lifecycle(self):
+        """Valida que AppRequestHandler._rt resuelva al módulo y ciclo de vida compartido."""
+        from md2html.adapters.http.handlers import AppRequestHandler
+        import sys
+        rt = AppRequestHandler._rt.fget(AppRequestHandler)
+        self.assertIs(rt, sys.modules["app"])
+
+    def test_logger_writes_to_project_root(self):
+        """Valida que el logger defensivo escriba en la raíz del proyecto y no en un subdirectorio."""
+        from md2html.adapters.storage.logger import DEFAULT_LOG_FILE
+        self.assertEqual(DEFAULT_LOG_FILE.name, "debug_log.txt")
+        self.assertEqual(DEFAULT_LOG_FILE.parent, app.APP_DIR)
+
+    def test_watchdog_preserves_server_when_tray_active(self):
+        """Valida que el watchdog no cierre el servidor si el System Tray está activo y funcionando."""
+        from unittest.mock import MagicMock
+        from md2html.core.services.lifecycle_service import run_watchdog_loop, AppLifecycleState
+
+        server_mock = MagicMock()
+        state = AppLifecycleState()
+        # Simula tray activo
+        tray_mock = MagicMock()
+        tray_mock.is_running = True
+        state.tray_instance = tray_mock
+
+        class StopLoop(Exception):
+            pass
+
+        # Simulamos que transcurren más de 120s sin conexión web inicial
+        with patch("time.sleep", side_effect=[None, StopLoop]), \
+             patch("time.time", side_effect=[0.0, 150.0, 151.0, 152.0]):
+            try:
+                run_watchdog_loop(
+                    server=server_mock,
+                    state=state,
+                    is_window_alive_fn=lambda: False,
+                    get_config_fn=lambda: {"system_tray_enabled": True, "close_to_tray": True},
+                )
+            except StopLoop:
+                pass
+            # El servidor no debió apagarse al expirar 120s porque el tray estaba activo
+            server_mock.shutdown.assert_not_called()
+
     def test_is_app_window_alive_lifecycle(self):
         # Save previous state
         orig_hwnds = app.tracked_app_hwnds.copy()
