@@ -1,0 +1,516 @@
+let currentConfig = { root_dir: '', auto_open: true };
+let activeTab = 'text';
+let selectedFilePath = '';
+let lastGeneratedResult = null;
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+async function fetchWithRetry(url, options = {}, retries = 2, delayMs = 350, timeoutMs = 8000) {
+  let lastErr;
+  for (let i = 0; i < retries; i++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const fetchOptions = { ...options, signal: controller.signal };
+      const res = await fetch(url, fetchOptions);
+      clearTimeout(timeoutId);
+      return res;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      lastErr = err;
+      console.warn(`[App] Intento ${i + 1}/${retries} para ${url} falló:`, err);
+      if (i < retries - 1) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+async function loadConfig() {
+  try {
+    const res = await fetchWithRetry('/api/config');
+    const data = await res.json();
+    currentConfig = data;
+    document.getElementById('currentDirPath').textContent = data.root_dir;
+    document.getElementById('currentDirPath').title = data.root_dir;
+    document.getElementById('autoOpenToggle').checked = data.auto_open;
+    renderRecentList(data.recent_conversions || []);
+  } catch (err) {
+    console.error('Error cargando configuración:', err);
+  }
+}
+
+function renderRecentList(list) {
+  const el = document.getElementById('recentList');
+  const countEl = document.getElementById('recentCount');
+  if (countEl) {
+    countEl.textContent = list && list.length > 0 ? `(${list.length})` : '';
+  }
+  if (!list || list.length === 0) {
+    el.innerHTML = `
+      <div class="recent-empty">
+        <span class="recent-empty-icon">📂</span>
+        <div style="font-weight: 550;">No hay documentos en el historial</div>
+        <div style="font-size: 0.74rem; opacity: 0.7;">Cada documento HTML que conviertas se registrará aquí con acceso rápido.</div>
+      </div>`;
+    return;
+  }
+  el.innerHTML = list.map(item => `
+    <div class="recent-item">
+      <div class="recent-info">
+        <span class="recent-item-title" title="${escapeHtml(item.title || item.filename)}">${escapeHtml(item.title || item.filename)}</span>
+        <span class="recent-item-meta"><code>${escapeHtml(item.filename)}</code> · 📅 ${escapeHtml(item.timestamp || '')}</span>
+      </div>
+      <div class="recent-actions-group">
+        <button class="btn-compact" onclick="openUrl('${escapeAttr(item.file_url)}')" title="Abrir en el navegador">🌐 Abrir</button>
+        <button class="btn-compact" onclick="copyText('${escapeAttr(item.file_url)}', 'Enlace copiado al portapapeles')" title="Copiar enlace">📋 Copiar</button>
+        <button class="btn-compact btn-delete" onclick="deleteRecentDoc('${escapeAttr(item.filename)}', '${escapeAttr(item.file_path)}', '${escapeAttr(item.title || item.filename)}')" title="Eliminar documento y borrar archivo HTML">🗑️ Eliminar</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(str) {
+  return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escapeAttr(str) {
+  return (str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+async function deleteRecentDoc(filename, filePath, docTitle) {
+  const displayName = docTitle || filename || 'este documento';
+  const confirmed = window.confirm(`¿Estás seguro de que deseas eliminar este documento?\n\n"${displayName}"\n\nEsta acción borrará permanentemente el archivo HTML del disco y lo quitará del historial.`);
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch('/api/delete-document', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: filename, file_path: filePath })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Documento eliminado correctamente');
+      currentConfig.recent_conversions = data.recent_conversions || [];
+      renderRecentList(currentConfig.recent_conversions);
+      if (lastGeneratedResult && (lastGeneratedResult.filename === filename || lastGeneratedResult.file_path === filePath)) {
+        document.getElementById('resultCard').style.display = 'none';
+        lastGeneratedResult = null;
+      }
+    } else {
+      showToast('Error: ' + (data.error || 'No se pudo eliminar'));
+    }
+  } catch (err) {
+    console.error('Error al eliminar:', err);
+    showToast('Error de comunicación al eliminar documento');
+  }
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tabTextBtn').classList.toggle('active', tab === 'text');
+  document.getElementById('tabFileBtn').classList.toggle('active', tab === 'file');
+  document.getElementById('tabTextContent').classList.toggle('active', tab === 'text');
+  document.getElementById('tabFileContent').classList.toggle('active', tab === 'file');
+}
+
+async function toggleAutoOpen() {
+  const isChecked = document.getElementById('autoOpenToggle').checked;
+  currentConfig.auto_open = isChecked;
+  await fetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ auto_open: isChecked })
+  });
+  showToast(isChecked ? 'Abrir automáticamente: ACTIVADO' : 'Abrir automáticamente: DESACTIVADO');
+}
+
+async function browseFolder() {
+  try {
+    const res = await fetch('/api/browse-folder', { method: 'POST' });
+    const data = await res.json();
+    if (data.chosen_path) {
+      currentConfig.root_dir = data.chosen_path;
+      document.getElementById('currentDirPath').textContent = data.chosen_path;
+      document.getElementById('currentDirPath').title = data.chosen_path;
+      showToast('Directorio raíz actualizado');
+      loadConfig();
+    }
+  } catch (e) {
+    console.error('Error seleccionando carpeta:', e);
+  }
+}
+
+function openCurrentFolder() {
+  fetch('/api/open-folder', { method: 'POST' });
+}
+
+function openLogs() {
+  fetch('/api/open-logs', { method: 'POST' }).catch(() => {});
+  showToast('Abriendo debug_log.txt...');
+}
+
+async function browseFile() {
+  try {
+    const res = await fetch('/api/browse-file', { method: 'POST' });
+    const data = await res.json();
+    if (data.file_path) {
+      selectedFilePath = data.file_path;
+      document.getElementById('selectedFileName').textContent = data.filename;
+      document.getElementById('selectedFileBadge').style.display = 'flex';
+      document.getElementById('dropzone').style.display = 'none';
+    }
+  } catch (e) {
+    console.error('Error seleccionando archivo:', e);
+  }
+}
+
+function clearSelectedFile() {
+  selectedFilePath = '';
+  document.getElementById('selectedFileBadge').style.display = 'none';
+  document.getElementById('dropzone').style.display = 'flex';
+}
+
+async function getClipboardText() {
+  try {
+    const res = await fetch('/api/clipboard');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data.text === 'string') {
+        return data.text;
+      }
+    }
+  } catch (err) {
+    console.warn('Backend clipboard endpoint no disponible, recurriendo a Web API:', err);
+  }
+
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    return await navigator.clipboard.readText();
+  }
+
+  throw new Error('No se pudo acceder al portapapeles');
+}
+
+async function pasteClipboard() {
+  try {
+    const text = await getClipboardText();
+    if (text && text.trim()) {
+      const ta = document.getElementById('markdownInput');
+      ta.value = text;
+      updateCounters();
+      showToast('Texto pegado del portapapeles');
+    } else {
+      showToast('⚠️ El portapapeles está vacío o no contiene texto');
+    }
+  } catch (e) {
+    showToast('Usa Ctrl + V para pegar');
+  }
+}
+
+function clearTextarea() {
+  document.getElementById('markdownInput').value = '';
+  updateCounters();
+}
+
+function updateCounters() {
+  const val = document.getElementById('markdownInput').value;
+  const chars = val.length;
+  const words = val.trim() ? val.trim().split(/\s+/).length : 0;
+  document.getElementById('charCount').textContent = `${chars} caracteres · ${words} palabras`;
+}
+
+async function pasteAndConvert() {
+  let text = '';
+  try {
+    text = await getClipboardText();
+  } catch (err) {
+    console.error('Error al leer portapapeles:', err);
+    showToast('⚠️ No se pudo leer el portapapeles. Usa Ctrl+V y presiona Convertir');
+    return;
+  }
+
+  if (!text || !text.trim()) {
+    showToast('⚠️ El portapapeles está vacío o no contiene texto');
+    return;
+  }
+
+  if (activeTab !== 'text') {
+    switchTab('text');
+  }
+
+  const ta = document.getElementById('markdownInput');
+  ta.value = text;
+  updateCounters();
+
+  showToast('⚡ Pegando del portapapeles y convirtiendo...');
+  await performConversion();
+}
+
+async function performConversion() {
+  const pasteBtn = document.getElementById('pasteAndConvertBtn');
+  const convertBtn = document.getElementById('convertBtn');
+  const customTitle = document.getElementById('customTitleInput').value.trim();
+
+  let payload = {
+    custom_title: customTitle,
+    auto_open: document.getElementById('autoOpenToggle').checked
+  };
+
+  if (activeTab === 'file') {
+    if (!selectedFilePath) {
+      showToast('Por favor selecciona un archivo .md');
+      return;
+    }
+    payload.file_path = selectedFilePath;
+  } else {
+    const text = document.getElementById('markdownInput').value.trim();
+    if (!text) {
+      showToast('Por favor escribe o pega texto Markdown');
+      return;
+    }
+    payload.text = text;
+  }
+
+  [pasteBtn, convertBtn].forEach(b => {
+    if (b) {
+      b.style.opacity = '0.6';
+      b.style.pointerEvents = 'none';
+    }
+  });
+
+  try {
+    console.log('[App] Enviando Markdown al motor para conversión...');
+    const res = await fetchWithRetry('/api/convert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }, 2, 350, 15000);
+
+    const data = await res.json();
+    if (data.success) {
+      lastGeneratedResult = data;
+      document.getElementById('resultDocTitle').textContent = data.title;
+      document.getElementById('resultPath').textContent = data.file_path;
+      document.getElementById('resultCard').style.display = 'flex';
+      showToast('¡HTML generado exitosamente!');
+      loadConfig();
+    } else {
+      showToast('Error: ' + (data.error || 'No se pudo convertir'));
+    }
+  } catch (err) {
+    console.error('Error al convertir:', err);
+    if (err && err.name === 'AbortError') {
+      showToast('⚠️ Tiempo de espera agotado con el motor (Timeout). Revisa Ver Logs');
+    } else {
+      showToast('⚠️ Error de comunicación con el motor. Revisa Ver Logs');
+    }
+  } finally {
+    [pasteBtn, convertBtn].forEach(b => {
+      if (b) {
+        b.style.opacity = '1';
+        b.style.pointerEvents = 'auto';
+      }
+    });
+  }
+}
+
+function openGeneratedDoc() {
+  if (lastGeneratedResult) {
+    openUrl(lastGeneratedResult.file_url);
+  }
+}
+
+function copyGeneratedLink() {
+  if (lastGeneratedResult) {
+    copyText(lastGeneratedResult.file_url, 'Enlace copiado al portapapeles');
+  }
+}
+
+function openIndexInBrowser() {
+  fetch('/api/open-index', { method: 'POST' });
+}
+
+function openUrl(url) {
+  fetch('/api/open-file', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: url })
+  });
+}
+
+function copyText(str, msg) {
+  navigator.clipboard.writeText(str).then(() => {
+    showToast(msg || 'Copiado al portapapeles');
+  });
+}
+
+const dropzone = document.getElementById('dropzone');
+if (dropzone) {
+  ['dragenter', 'dragover'].forEach(name => {
+    dropzone.addEventListener(name, (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(name => {
+    dropzone.addEventListener(name, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+    });
+  });
+  dropzone.addEventListener('drop', (e) => {
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        document.getElementById('markdownInput').value = re.target.result;
+        switchTab('text');
+        updateCounters();
+        showToast(`Cargado contenido de ${file.name}`);
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'V' || e.key === 'v')) {
+    e.preventDefault();
+    pasteAndConvert();
+  } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    performConversion();
+  }
+});
+
+let consecutiveHeartbeatFailures = 0;
+let heartbeatWorker = null;
+
+function updateEngineStatus(isActive) {
+  const text = document.getElementById('engineStatus');
+  const dot = document.querySelector('.status-dot');
+  const capsule = document.querySelector('.status-capsule');
+  if (isActive) {
+    if (text) text.textContent = 'Motor Activo';
+    if (capsule) {
+      capsule.style.background = 'var(--success-surface)';
+      capsule.style.color = 'var(--success)';
+      capsule.style.borderColor = 'rgba(16, 185, 129, 0.25)';
+    }
+    if (dot) {
+      dot.style.background = 'var(--success)';
+      dot.style.boxShadow = '0 0 8px var(--success)';
+    }
+  } else {
+    if (text) text.textContent = 'Reconectando...';
+    if (capsule) {
+      capsule.style.background = 'rgba(239, 68, 68, 0.14)';
+      capsule.style.color = 'var(--danger)';
+      capsule.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+    }
+    if (dot) {
+      dot.style.background = 'var(--danger)';
+      dot.style.boxShadow = '0 0 8px var(--danger)';
+    }
+  }
+}
+
+async function sendHeartbeat() {
+  try {
+    const res = await fetch('/api/heartbeat', { method: 'POST' });
+    if (res.ok) {
+      if (consecutiveHeartbeatFailures > 0) {
+        consecutiveHeartbeatFailures = 0;
+        updateEngineStatus(true);
+      }
+    } else {
+      consecutiveHeartbeatFailures++;
+      if (consecutiveHeartbeatFailures >= 3) {
+        updateEngineStatus(false);
+      }
+    }
+  } catch (err) {
+    consecutiveHeartbeatFailures++;
+    if (consecutiveHeartbeatFailures >= 3) {
+      updateEngineStatus(false);
+    }
+  }
+}
+
+try {
+  const workerCode = `
+    setInterval(() => {
+      fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
+    }, 3500);
+  `;
+  const blob = new Blob([workerCode], { type: 'application/javascript' });
+  heartbeatWorker = new Worker(URL.createObjectURL(blob));
+} catch (e) {
+  console.warn('Web Worker no disponible, operando en hilo principal:', e);
+}
+
+sendHeartbeat();
+setInterval(sendHeartbeat, 3500);
+
+window.addEventListener('focus', () => {
+  sendHeartbeat();
+  loadConfig();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    sendHeartbeat();
+    loadConfig();
+  }
+});
+
+function notifyShutdown() {
+  try {
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/api/shutdown', JSON.stringify({ reason: 'window_unload' }));
+    } else {
+      fetch('/api/shutdown', { method: 'POST', keepalive: true }).catch(() => {});
+    }
+  } catch (e) {}
+}
+window.addEventListener('pagehide', notifyShutdown);
+window.addEventListener('beforeunload', notifyShutdown);
+
+function adjustWindowSize() {
+  const sw = window.screen.availWidth || window.screen.width;
+  const sh = window.screen.availHeight || window.screen.height;
+  if (!sw || !sh) return;
+
+  let targetW, targetH;
+  if (sw >= 1600) {
+    targetW = 750;
+    targetH = Math.min(680, Math.round(sh * 0.68));
+  } else {
+    targetW = Math.max(680, Math.min(1280, Math.round(sw * 0.85)));
+    targetH = Math.max(560, Math.min(760, Math.round(sh * 0.86)));
+  }
+  const posX = Math.max(0, Math.round((sw - targetW) / 2));
+  const posY = Math.max(0, Math.round((sh - targetH) / 2));
+
+  try {
+    window.resizeTo(targetW, targetH);
+    window.moveTo(posX, posY);
+  } catch (e) {}
+
+  fetch('/api/adjust-window', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ screen_w: sw, screen_h: sh })
+  }).catch(() => {});
+}
+
+adjustWindowSize();
+loadConfig();
+updateCounters();
