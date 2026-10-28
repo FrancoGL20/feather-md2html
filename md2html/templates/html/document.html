@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'></path><polyline points='14 2 14 8 20 8'></polyline></svg>">
+  <style>
+{styles}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Cross-Document Navigation Bar -->
+    <nav class="top-nav-bar" aria-label="Navegación de biblioteca">
+      <div class="nav-links-group">
+        <a href="./index.html" class="nav-pill-btn" title="Ir al catálogo de todos los archivos generados">
+          {icon_folder}
+          <span>Índice de Documentos</span>
+        </a>
+        <a href="./latest.html" class="nav-pill-btn" title="Ir a la página más nueva creada">
+          {icon_bolt}
+          <span>Más Reciente</span>
+        </a>
+      </div>
+      <button class="theme-toggle-btn" id="theme-btn" onclick="toggleTheme()" title="Alternar tema claro/oscuro">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        <span>Tema</span>
+      </button>
+    </nav>
+
+    <header>
+      <h1>{header_title} {header_badge}</h1>
+      {header_subtitle}
+      <div class="header-meta">
+        <span>⏱️ {reading_time}</span>
+        <span>📝 {word_count} palabras</span>
+        <span>📅 Generado el {generated_date}</span>
+      </div>
+    </header>
+
+    <main>
+{toc_content}
+{body_content}
+    </main>
+
+    <footer>
+      <span>Biblioteca Markdown HTML</span>
+      <span>{footer_date}</span>
+    </footer>
+  </div>
+
+  <script>
+    function initTheme() {{
+      const saved = localStorage.getItem('apple-md-theme');
+      if (saved === 'light') {{
+        document.documentElement.classList.add('light');
+      }} else if (saved === 'dark') {{
+        document.documentElement.classList.remove('light');
+      }}
+    }}
+    function toggleTheme() {{
+      const isLight = document.documentElement.classList.contains('light');
+      if (isLight) {{
+        document.documentElement.classList.remove('light');
+        localStorage.setItem('apple-md-theme', 'dark');
+      }} else {{
+        document.documentElement.classList.add('light');
+        localStorage.setItem('apple-md-theme', 'light');
+      }}
+      if (typeof renderMermaidDiagrams === 'function') {{
+        renderMermaidDiagrams();
+      }}
+    }}
+    initTheme();
+
+    function copyCode(btn) {{
+      const code = btn.closest('.code-block').querySelector('pre code').innerText;
+      navigator.clipboard.writeText(code).then(() => {{
+        const orig = btn.innerHTML;
+        btn.classList.add('copied');
+        btn.innerHTML = '✓ Copiado';
+        setTimeout(() => {{
+          btn.innerHTML = orig;
+          btn.classList.remove('copied');
+        }}, 2000);
+      }});
+    }}
+  </script>
+{mermaid_scripts}
+{math_scripts}
+</body>
+</html>
