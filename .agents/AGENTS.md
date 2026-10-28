@@ -269,6 +269,11 @@ El estado de ejecución reside encapsulado en `AppLifecycleState` (`md2html/core
 5. **Apagado Rápido y Limpio (`/api/shutdown`):** Al cerrar la ventana (`pagehide` y `beforeunload`), el navegador despacha un `navigator.sendBeacon('/api/shutdown')` que finaliza el proceso `pythonw.exe` de inmediato sin dejar procesos huérfanos (salvo que esté activo el modo System Tray). Si el usuario recarga la página (F5), la nueva conexión cancela automáticamente el apagado en el periodo de gracia.
 6. **Reintentos Transparentes en el Cliente:** Las llamadas críticas del frontend implementan `fetchWithRetry` con reintento automático y backoff de 350ms para absorber cualquier transición de reposo de sockets tras largos periodos de inactividad.
 
+7. **Estado "Reconectando..." con periodo de gracia:** el Worker de latidos usa URL absoluta (`location.origin`; las URLs relativas no se resuelven en Workers Blob) y reporta sus resultados al hilo principal. La UI solo muestra "Reconectando..." tras 20 s sin ningún latido exitoso, reintenta cada 1.5 s y concede nueva gracia al despertar (`focus`, `visibilitychange`, `pageshow`, `resume`, `online`). `pagehide` con `persisted` (congelación) no notifica cierre.
+8. **Salida explícita no cancelable:** `quit_app_fully()` usa `schedule_shutdown(force=True)`; latidos y peticiones (`cancel_scheduled_shutdown(force=False)`) ya no la cancelan.
+9. **Auto-reparación del System Tray:** un `WM_TIMER` (15 s) verifica el icono con `NIM_MODIFY` y lo re-registra si Explorer lo descartó.
+10. **Diagnóstico de muertes silenciosas:** `faulthandler` (`crash_native.txt`), `threading.excepthook`, `atexit` y latido de vida del watchdog (cada 10 min) en `debug_log.txt`; `serve_forever()` se reanuda si termina sin apagado intencional.
+
 ### 5.2. Compatibilidad con `pythonw.exe`
 
 En Windows, al ejecutar scripts mediante `pythonw.exe` (modo ventana sin consola gráfica):
