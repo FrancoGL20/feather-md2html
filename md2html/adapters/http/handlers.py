@@ -9,6 +9,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 from pathlib import Path
+import sys
 import threading
 import time
 import traceback
@@ -48,6 +49,10 @@ class AppRequestHandler(BaseHTTPRequestHandler):
     def _rt(self) -> Any:
         if self.runtime_facade is not None:
             return self.runtime_facade
+        if "app" in sys.modules:
+            return sys.modules["app"]
+        if "__main__" in sys.modules and hasattr(sys.modules["__main__"], "_lifecycle"):
+            return sys.modules["__main__"]
         import app
 
         return app
@@ -83,7 +88,7 @@ class AppRequestHandler(BaseHTTPRequestHandler):
         rt = self._rt
         rt.client_connected = True
         rt.last_heartbeat = time.time()
-        rt.cancel_scheduled_shutdown()
+        rt.cancel_scheduled_shutdown(force=False)
         return urlparse(self.path).path
 
     def do_GET(self) -> None:

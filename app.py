@@ -7,12 +7,15 @@ services (`md2html.core.services`) to run the local HTTP server, native Chromium
 window, and Windows System Tray controller.
 """
 
+import atexit
 from datetime import datetime
+import faulthandler
 from http.server import HTTPServer, ThreadingHTTPServer
 import os
 from pathlib import Path
 import sys
 import threading
+import time
 import traceback
 import types
 from typing import Any, Dict, List, Optional
@@ -25,6 +28,11 @@ if sys.stdout and getattr(sys.stdout, "encoding", None):
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
+
+# Ensure that if app.py is run directly as __main__, any subsequent 'import app'
+# resolves to the exact same module object and lifecycle state.
+if __name__ == "__main__":
+    sys.modules["app"] = sys.modules["__main__"]
 
 from md2html.adapters.http import AppRequestHandler
 from md2html.adapters.os_win32 import (
@@ -88,14 +96,14 @@ def add_recent_conversion(doc_info: Dict[str, Any]) -> None:
     _config_repo.add_recent_conversion(doc_info)
 
 
-def schedule_shutdown(delay: float = 4.0) -> None:
+def schedule_shutdown(delay: float = 4.0, force: bool = False) -> None:
     """Schedules a deferred server shutdown."""
-    _lifecycle.schedule_shutdown(delay=delay)
+    _lifecycle.schedule_shutdown(delay=delay, force=force)
 
 
-def cancel_scheduled_shutdown() -> None:
+def cancel_scheduled_shutdown(force: bool = True) -> None:
     """Cancels any pending scheduled server shutdown."""
-    _lifecycle.cancel_scheduled_shutdown()
+    _lifecycle.cancel_scheduled_shutdown(force=force)
 
 
 def acquire_single_instance_lock() -> Any:
@@ -162,7 +170,7 @@ def quit_app_fully() -> None:
             _lifecycle.tray_instance.stop()
         except Exception as e:
             log_debug(f"Aviso deteniendo tray en quit_app_fully: {e}")
-    schedule_shutdown(0.1)
+    schedule_shutdown(0.1, force=True)
 
 
 def watchdog_thread(server: HTTPServer) -> None:
@@ -175,9 +183,36 @@ def watchdog_thread(server: HTTPServer) -> None:
     )
 
 
+def _install_diagnostics() -> None:
+    """
+    Installs process-level diagnostics so that silent deaths of the windowless
+    `pythonw.exe` process leave a trace (native crashes, uncaught thread errors, exit).
+    """
+    try:
+        fault_file = open(APP_DIR / "crash_native.txt", "a", buffering=1, encoding="utf-8")
+        faulthandler.enable(file=fault_file, all_threads=True)
+        _lifecycle.fault_log_file = fault_file
+    except Exception as e:
+        log_debug(f"Aviso activando faulthandler: {e}")
+
+    def _thread_hook(args: Any) -> None:
+        log_debug(
+            f"Excepción no controlada en hilo '{getattr(args.thread, 'name', '?')}': "
+            f"{''.join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback))}"
+        )
+
+    threading.excepthook = _thread_hook
+    atexit.register(
+        lambda: log_debug(
+            f"Proceso finalizando (apagado intencional={_lifecycle.intentional_shutdown})."
+        )
+    )
+
+
 def main() -> None:
     """Application entrypoint: acquires lock, starts HTTP server, tray, and UI window."""
     log_debug("--- Inicio de main() ---")
+    _install_diagnostics()
 
     _lifecycle.app_single_instance_mutex = acquire_single_instance_lock()
     if _lifecycle.app_single_instance_mutex is None:
@@ -192,6 +227,7 @@ def main() -> None:
     _lifecycle.record_activity()
     _lifecycle.client_connected = False
 
+    AppRequestHandler.runtime_facade = sys.modules[__name__]
     server = ThreadingHTTPServer(("127.0.0.1", port), AppRequestHandler)
     _lifecycle.server_instance = server
     log_debug("ThreadingHTTPServer instanciado")
@@ -223,10 +259,17 @@ def main() -> None:
 
     log_debug("Entrando a server.serve_forever()...")
     try:
-        server.serve_forever()
-        log_debug("server.serve_forever() terminó de forma natural")
-    except Exception as e:
-        log_debug(f"Excepción en serve_forever: {e}")
+        while True:
+            try:
+                server.serve_forever()
+                log_debug("server.serve_forever() terminó de forma natural")
+            except Exception as e:
+                log_debug(f"Excepción en serve_forever: {e}\n{traceback.format_exc()}")
+            if _lifecycle.intentional_shutdown:
+                break
+            # Salida inesperada del bucle HTTP: se reanuda para que la app no quede "sorda"
+            log_debug("serve_forever() terminó SIN apagado intencional. Reanudando servidor...")
+            time.sleep(0.5)
     finally:
         log_debug("Bloque finally de main(): cerrando servidor y tray")
         if _lifecycle.tray_instance:

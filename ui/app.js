@@ -391,8 +391,17 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-let consecutiveHeartbeatFailures = 0;
+const HEARTBEAT_INTERVAL_MS = 3500;
+const HEARTBEAT_RETRY_MS = 1500;
+const HEARTBEAT_TIMEOUT_MS = 6000;
+// Tiempo sin latidos exitosos antes de mostrar "Reconectando..." (tolera reposo, suspensión y throttling)
+const RECONNECT_GRACE_MS = 20000;
+
 let heartbeatWorker = null;
+let heartbeatInFlight = false;
+let heartbeatTimer = null;
+let engineIsActive = true;
+let lastHeartbeatOkAt = Date.now();
 
 function updateEngineStatus(isActive) {
   const text = document.getElementById('engineStatus');
@@ -423,64 +432,121 @@ function updateEngineStatus(isActive) {
   }
 }
 
-async function sendHeartbeat() {
-  try {
-    const res = await fetch('/api/heartbeat', { method: 'POST' });
-    if (res.ok) {
-      if (consecutiveHeartbeatFailures > 0) {
-        consecutiveHeartbeatFailures = 0;
-        updateEngineStatus(true);
-      }
-    } else {
-      consecutiveHeartbeatFailures++;
-      if (consecutiveHeartbeatFailures >= 3) {
-        updateEngineStatus(false);
-      }
+function markHeartbeat(ok) {
+  if (ok) {
+    lastHeartbeatOkAt = Date.now();
+    if (!engineIsActive) {
+      engineIsActive = true;
+      updateEngineStatus(true);
+      loadConfig();
     }
-  } catch (err) {
-    consecutiveHeartbeatFailures++;
-    if (consecutiveHeartbeatFailures >= 3) {
-      updateEngineStatus(false);
-    }
+    return;
+  }
+  if (engineIsActive && Date.now() - lastHeartbeatOkAt > RECONNECT_GRACE_MS) {
+    engineIsActive = false;
+    updateEngineStatus(false);
   }
 }
 
+function scheduleNextHeartbeat(delayMs) {
+  clearTimeout(heartbeatTimer);
+  heartbeatTimer = setTimeout(sendHeartbeat, delayMs);
+}
+
+async function sendHeartbeat() {
+  if (heartbeatInFlight) return;
+  heartbeatInFlight = true;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), HEARTBEAT_TIMEOUT_MS);
+  let ok = false;
+  try {
+    const res = await fetch('/api/heartbeat', {
+      method: 'POST',
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    ok = res.ok;
+  } catch (err) {
+    ok = false;
+  } finally {
+    clearTimeout(timeoutId);
+    heartbeatInFlight = false;
+  }
+  markHeartbeat(ok);
+  scheduleNextHeartbeat(ok ? HEARTBEAT_INTERVAL_MS : HEARTBEAT_RETRY_MS);
+}
+
+// Tras reposo, bloqueo de pantalla o suspensión el navegador congela/ralentiza los temporizadores:
+// se concede un nuevo periodo de gracia y se verifica el motor de inmediato.
+function wakeUpHeartbeat() {
+  if (engineIsActive) {
+    lastHeartbeatOkAt = Date.now();
+  }
+  sendHeartbeat();
+}
+
 try {
+  // Las URLs relativas no se resuelven dentro de un Worker creado desde Blob: se usa el origen absoluto.
+  const heartbeatUrl = `${location.origin}/api/heartbeat`;
   const workerCode = `
-    setInterval(() => {
-      fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
-    }, 3500);
+    const URL_HB = ${JSON.stringify(heartbeatUrl)};
+    async function beat() {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), ${HEARTBEAT_TIMEOUT_MS});
+      try {
+        const res = await fetch(URL_HB, { method: 'POST', cache: 'no-store', signal: controller.signal });
+        self.postMessage({ ok: res.ok });
+      } catch (e) {
+        self.postMessage({ ok: false });
+      } finally {
+        clearTimeout(t);
+      }
+    }
+    setInterval(beat, ${HEARTBEAT_INTERVAL_MS});
   `;
   const blob = new Blob([workerCode], { type: 'application/javascript' });
   heartbeatWorker = new Worker(URL.createObjectURL(blob));
+  heartbeatWorker.onmessage = (ev) => markHeartbeat(!!(ev.data && ev.data.ok));
 } catch (e) {
   console.warn('Web Worker no disponible, operando en hilo principal:', e);
 }
 
 sendHeartbeat();
-setInterval(sendHeartbeat, 3500);
 
 window.addEventListener('focus', () => {
-  sendHeartbeat();
+  wakeUpHeartbeat();
   loadConfig();
 });
+window.addEventListener('online', wakeUpHeartbeat);
+window.addEventListener('pageshow', wakeUpHeartbeat);
+document.addEventListener('resume', wakeUpHeartbeat);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    sendHeartbeat();
+    wakeUpHeartbeat();
     loadConfig();
   }
 });
 
 function notifyShutdown() {
   try {
+    const payload = JSON.stringify({ reason: 'window_unload' });
     if (navigator.sendBeacon) {
-      navigator.sendBeacon('/api/shutdown', JSON.stringify({ reason: 'window_unload' }));
+      navigator.sendBeacon('/api/shutdown', payload);
     } else {
-      fetch('/api/shutdown', { method: 'POST', keepalive: true }).catch(() => {});
+      fetch('/api/shutdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true
+      }).catch(() => {});
     }
   } catch (e) {}
 }
-window.addEventListener('pagehide', notifyShutdown);
+window.addEventListener('pagehide', (e) => {
+  // Congelación/bfcache (persisted) no es un cierre real de la ventana
+  if (e && e.persisted) return;
+  notifyShutdown();
+});
 window.addEventListener('beforeunload', notifyShutdown);
 
 function adjustWindowSize() {

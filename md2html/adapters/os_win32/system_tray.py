@@ -21,6 +21,7 @@ kernel32 = ctypes.windll.kernel32
 WM_NULL = 0x0000
 WM_DESTROY = 0x0002
 WM_COMMAND = 0x0111
+WM_TIMER = 0x0113
 WM_USER = 0x0400
 WM_TRAY_CALLBACK = WM_USER + 20
 
@@ -59,6 +60,11 @@ ID_MENU_OPEN_APP = 1001
 ID_MENU_OPEN_FOLDER = 1002
 ID_MENU_OPEN_INDEX = 1003
 ID_MENU_QUIT = 1004
+
+# Periodic self-healing: Explorer can silently drop notification icons (restarts, sleep/resume,
+# session lock, display changes) without delivering TaskbarCreated to the hidden window.
+ID_TIMER_HEALTH = 9001
+HEALTH_CHECK_INTERVAL_MS = 15000
 
 
 class GUID(ctypes.Structure):
@@ -167,6 +173,17 @@ user32.PostMessageW.argtypes = [
     wintypes.LPARAM,
 ]
 user32.PostMessageW.restype = wintypes.BOOL
+
+user32.SetTimer.argtypes = [
+    wintypes.HWND,
+    ctypes.c_size_t,
+    wintypes.UINT,
+    ctypes.c_void_p,
+]
+user32.SetTimer.restype = ctypes.c_size_t
+
+user32.KillTimer.argtypes = [wintypes.HWND, ctypes.c_size_t]
+user32.KillTimer.restype = wintypes.BOOL
 
 user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
 user32.GetCursorPos.restype = wintypes.BOOL
@@ -312,6 +329,23 @@ class TrayManager:
         )
         return False
 
+    def _ensure_tray_icon(self) -> None:
+        """Verifies the notification icon still exists and silently re-registers it when it was dropped."""
+        if not self.hwnd or not self.hicon:
+            return
+        if not self._is_icon_added:
+            self._log("Icono de bandeja ausente. Reintentando registro...")
+            self._add_tray_icon()
+            return
+        try:
+            nid = self._create_notify_icon_data()
+            if not shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(nid)):
+                self._log("Icono de bandeja descartado por el sistema. Re-registrando...")
+                self._is_icon_added = False
+                self._add_tray_icon()
+        except Exception as e:
+            self._log(f"Aviso verificando icono de bandeja: {e}")
+
     def _remove_tray_icon(self) -> None:
         if self._is_icon_added and self.hwnd:
             nid = self._create_notify_icon_data()
@@ -401,12 +435,17 @@ class TrayManager:
                 self._dispatch_callback(self.on_quit)
                 return 0
 
+        elif msg == WM_TIMER and wparam == ID_TIMER_HEALTH:
+            self._ensure_tray_icon()
+            return 0
+
         elif msg != 0 and msg == self.wm_taskbar_created:
             self._log("Señal TaskbarCreated recibida de Explorer. Re-registrando icono...")
             self._add_tray_icon()
             return 0
 
         elif msg == WM_DESTROY:
+            user32.KillTimer(hwnd, ID_TIMER_HEALTH)
             self._remove_tray_icon()
             user32.PostQuitMessage(0)
             return 0
@@ -455,6 +494,7 @@ class TrayManager:
 
         self.hicon = self._load_icon()
         self._add_tray_icon()
+        user32.SetTimer(self.hwnd, ID_TIMER_HEALTH, HEALTH_CHECK_INTERVAL_MS, None)
         self._is_running = True
 
         msg = wintypes.MSG()
