@@ -273,8 +273,16 @@ El estado de ejecución reside encapsulado en `AppLifecycleState` (`md2html/core
 8. **Salida explícita no cancelable:** `quit_app_fully()` usa `schedule_shutdown(force=True)`; latidos y peticiones (`cancel_scheduled_shutdown(force=False)`) ya no la cancelan.
 9. **Auto-reparación del System Tray:** un `WM_TIMER` (15 s) verifica el icono con `NIM_MODIFY` y lo re-registra si Explorer lo descartó.
 10. **Diagnóstico de muertes silenciosas:** `faulthandler` (`crash_native.txt`), `threading.excepthook`, `atexit` y latido de vida del watchdog (cada 10 min) en `debug_log.txt`; `serve_forever()` se reanuda si termina sin apagado intencional.
+11. **Inmunidad del Watchdog ante presencia del System Tray:** `run_watchdog_loop` evalúa activamente `tray_instance.is_running`. Si la ventana Chromium se cierra o no se reciben latidos web, pero el System Tray está habilitado y su bucle Win32 está en ejecución, el watchdog **nunca fuerza el apagado del servidor** (ni por el timeout inicial de 120s ni por el umbral de inactividad de 180s). El proceso en segundo plano se mantiene vivo indefinidamente hasta que el usuario solicite explícitamente "Salir completamente" desde el menú contextual.
 
-### 5.2. Compatibilidad con `pythonw.exe`
+### 5.2. Interoperabilidad de Módulos y Estado Único (`__main__` vs `app`)
+
+Al invocar la aplicación desde la línea de comandos o accesos directos (`pythonw.exe app.py`), Python ejecuta el script bajo el espacio de nombres `__main__`. Para evitar que adaptadores modulares internos (`md2html/adapters/http/handlers.py`) que importan `app` generen una segunda instancia desacoplada de `AppLifecycleState` en memoria:
+- `app.py` registra canónicamente `sys.modules["app"] = sys.modules["__main__"]` inmediatamente al iniciar si `__name__ == "__main__"`.
+- `AppRequestHandler.runtime_facade` se vincula explícitamente a `sys.modules[__name__]`.
+- La propiedad `_rt` en `handlers.py` resuelve primero hacia `runtime_facade`, luego hacia `sys.modules["app"]`, luego hacia `sys.modules["__main__"]` y finalmente como fallback a `import app`. Esto asegura un único estado de ciclo de vida consistente en todo el proceso.
+
+### 5.3. Compatibilidad con `pythonw.exe`
 
 En Windows, al ejecutar scripts mediante `pythonw.exe` (modo ventana sin consola gráfica):
 - `sys.stdout` y `sys.stderr` son evaluados como `None`.
@@ -288,7 +296,7 @@ En Windows, al ejecutar scripts mediante `pythonw.exe` (modo ventana sin consola
           pass
   ```
 
-### 5.3. Catálogo Completo de Endpoints de la API (`md2html/adapters/http/`)
+### 5.4. Catálogo Completo de Endpoints de la API (`md2html/adapters/http/`)
 
 El despacho de rutas se realiza mediante la tabla declarativa `HttpRouter` en `md2html/adapters/http/router.py`:
 

@@ -71,5 +71,6 @@ Todo agente que interactúe con este repositorio debe clasificar el requerimient
 8. **Fase 8: Cierre de Ticket, Resumen Estandarizado y Comandos Git:**
    - De acuerdo con [closing_protocol.md](file:///c:/General/MarkdownToHTML_App/.agents/rules/closing_protocol.md), cada tarea es un **Ticket**.
    - Proporcionar de forma obligatoria el **Resumen Estandarizado de Cierre de Ticket** (Cambios realizados, Cosas nuevas, Pruebas existentes, Pruebas nuevas, Archivos modificados y Creados).
+   - Presentar la **Retrospectiva de Auto-mejora**: si no hay mejoras al contexto mencionarlo explícitamente; si se identificó una mejora, indicar archivo, cambios propuestos y formular una pregunta de confirmación esperando un "SÍ" explícito del usuario antes de aplicar cambios en archivos de contexto.
    - Entregar el bloque completo de **Comandos Estandarizados de Git** (commits semánticos atómicos, merge `--no-ff` a `develop` y verificación de árbol limpio).
    - Mostrar el árbol de commits (`git log -n 5 --graph --oneline`) y `git status` limpio.
