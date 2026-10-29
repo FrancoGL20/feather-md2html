@@ -59,5 +59,11 @@ graph TD
      1. Creación/cambio a rama de feature si aplica (`git checkout -b feature/<nombre>`).
      2. `git add` y `git commit` semánticos atómicos (`feat:`, `test:`, `docs:`).
      3. Cambio a `develop`, integración `git merge --no-ff feature/<nombre>` y eliminación de rama local.
-6. **Paso 6: Retrospectiva de Auto-mejora Continua:**
-   - Identificar fricciones, patrones a estandarizar o mejoras arquitectónicas para el siguiente ticket.
+6. **Paso 6: Retrospectiva y Propuesta de Auto-mejora Continua:**
+   - **Caso 1: No se identificaron mejoras al contexto:**
+     Mencionarlo explícitamente en el resumen final: `🎯 Retrospectiva de Auto-mejora: No se identificaron mejoras para agregar al contexto en este ticket.`
+   - **Caso 2: Se identificó una mejora o patrón aplicable al contexto:**
+     Aparece únicamente si durante la conversación se descubrió un patrón arquitectónico, solución a bug sutil, lección aprendida o regla a estandarizar que deba persistirse en el contexto (`.agents/AGENTS.md`, `.agents/rules/`, `README.md`, etc.).
+     - **Archivo a modificar:** Mencionar la ruta exacta del archivo a actualizar.
+     - **Contenido del cambio:** Explicar detalladamente qué sección y qué texto o directriz técnica se modificará o agregará.
+     - **Pregunta de confirmación obligatoria:** Formularlo estrictamente como una pregunta. **PROHIBIDO aplicar el cambio de contexto automáticamente.** Solo si el usuario responde con un **"SÍ" explícito**, el agente procederá a aplicar el cambio en el archivo de contexto/regla.
