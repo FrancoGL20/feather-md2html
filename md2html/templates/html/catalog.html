@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Índice de Documentos HTML</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2'><path d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'></path></svg>">
+  <style>
+{common_styles}
+
+{catalog_styles}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="top-nav-bar" aria-label="Navegación">
+      <div class="nav-links-group">
+        <a href="{newest_link}" class="nav-pill-btn" title="Ir al documento más nuevo creado">
+          {icon_bolt}
+          <span>Documento Más Reciente</span>
+        </a>
+      </div>
+      <button class="theme-toggle-btn" id="theme-btn" onclick="toggleTheme()" title="Alternar tema">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        <span>Tema</span>
+      </button>
+    </nav>
+
+    <header class="index-header">
+      <div class="index-title-area">
+        <h1>Biblioteca de Documentos</h1>
+        <p class="index-subtitle">Catálogo cronológico ordenado del más nuevo al más viejo ({doc_count} documentos)</p>
+      </div>
+    </header>
+
+    <div class="search-box-wrap">
+      <span class="search-icon-inside">{icon_search}</span>
+      <input type="text" id="searchInput" class="search-input" placeholder="Buscar por título o nombre de archivo..." oninput="filterDocuments()">
+    </div>
+
+    <div class="docs-grid" id="docsGrid">
+      {cards_markup}
+    </div>
+
+    <footer>
+      <span>Biblioteca Markdown HTML</span>
+      <span>Directorio Raíz: {root_dir_escaped}</span>
+    </footer>
+  </div>
+
+  <script>
+    function initTheme() {{
+      const saved = localStorage.getItem('apple-md-theme');
+      if (saved === 'light') {{
+        document.documentElement.classList.add('light');
+      }} else if (saved === 'dark') {{
+        document.documentElement.classList.remove('light');
+      }}
+    }}
+    function toggleTheme() {{
+      const isLight = document.documentElement.classList.contains('light');
+      if (isLight) {{
+        document.documentElement.classList.remove('light');
+        localStorage.setItem('apple-md-theme', 'dark');
+      }} else {{
+        document.documentElement.classList.add('light');
+        localStorage.setItem('apple-md-theme', 'light');
+      }}
+    }}
+    initTheme();
+
+    function filterDocuments() {{
+      const q = document.getElementById('searchInput').value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.doc-card');
+      cards.forEach(card => {{
+        const title = card.getAttribute('data-title') || '';
+        const file = card.getAttribute('data-file') || '';
+        if (!q || title.includes(q) || file.includes(q)) {{
+          card.style.display = 'block';
+        }} else {{
+          card.style.display = 'none';
+        }}
+      }});
+    }}
+
+    function copyDocLink(filename, btn) {{
+      const fullUrl = new URL(filename, window.location.href).href;
+      navigator.clipboard.writeText(fullUrl).then(() => {{
+        const label = btn.querySelector('span');
+        const orig = label ? label.textContent : '';
+        if (label) label.textContent = '✓ Copiado';
+        setTimeout(() => {{
+          if (label) label.textContent = orig;
+        }}, 2000);
+      }});
+    }}
+  </script>
+</body>
+</html>

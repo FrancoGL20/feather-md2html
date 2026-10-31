@@ -9,6 +9,8 @@ and catalog generation.
 import os
 import sys
 import time
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -306,6 +308,41 @@ class TestTables(unittest.TestCase):
         self.assertIn('text-align: center;', html)
         self.assertIn('text-align: right;', html)
 
+    def test_table_without_separator_or_gherkin(self):
+        """Test tables without explicit :--- separator line (e.g. Gherkin data tables)."""
+        md = """
+| Usuario | Contraseña | Rol |
+| admin | secret123 | superuser |
+| guest | guestpass | viewer |
+"""
+        html = md_engine.compile_markdown_to_body(md)
+        self.assertIn('<div class="table-container">', html)
+        self.assertIn('<table>', html)
+        self.assertIn('>Usuario</th>', html)
+        self.assertIn('>admin</td>', html)
+        self.assertIn('>superuser</td>', html)
+
+    def test_single_line_pipe_and_math_pipe(self):
+        """Test single-line pipe and mathematical pipes do not cause infinite loops and render as text."""
+        md = """# Título de Prueba
+Este es un texto con opción A | opción B.
+Fórmula: |x| < 10.
+| sólo una línea |"""
+        html = md_engine.compile_markdown_to_body(md)
+        self.assertIn('opción A | opción B', html)
+        self.assertIn('|x| < 10', html)
+        self.assertIn('| sólo una línea |', html)
+
+    def test_indented_blockquote_and_hashtag(self):
+        """Test indented blockquotes and hashtags do not cause infinite loops."""
+        md = """  > Cita sangrada con espacios
+#hashtag sin espacio
+Texto normal."""
+        html = md_engine.compile_markdown_to_body(md)
+        self.assertIn('<blockquote><p>Cita sangrada con espacios</p></blockquote>', html)
+        self.assertIn('#hashtag sin espacio', html)
+
+
 
 class TestListHierarchy(unittest.TestCase):
     """Test ordered, unordered, nested, and checklist hierarchy."""
@@ -391,5 +428,379 @@ class TestCatalogAndNavigation(IsolatedEnvironmentTestCase):
         self.assertIn(res2["filename"], latest_html)
 
 
+class TestVolcanicAmberThemeDesignTokens(unittest.TestCase):
+    """
+    Verifica que el sistema de diseño Volcanic Amber & Deep Obsidian (Ámbar Volcánico y Negro Obsidiana)
+    esté correctamente estructurado en COMMON_STYLES y en las plantillas HTML compiladas.
+    """
+
+    def test_dark_mode_tokens(self):
+        self.assertIn("--canvas-bg: #070708;", md_engine.COMMON_STYLES)
+        self.assertIn("--card-bg: #111114;", md_engine.COMMON_STYLES)
+        self.assertIn("--card-alt-bg: #17181c;", md_engine.COMMON_STYLES)
+        self.assertIn("--primary: #f97316;", md_engine.COMMON_STYLES)
+        self.assertIn("--primary-hover: #fb923c;", md_engine.COMMON_STYLES)
+        self.assertIn("--text-main: #f8fafc;", md_engine.COMMON_STYLES)
+        self.assertIn("--text-muted: #94a3b8;", md_engine.COMMON_STYLES)
+        self.assertIn("--success-badge-text: #10b981;", md_engine.COMMON_STYLES)
+
+    def test_light_mode_volcanic_amber_tokens(self):
+        self.assertIn("html.light {", md_engine.COMMON_STYLES)
+        self.assertIn("--canvas-bg: #f8fafc;", md_engine.COMMON_STYLES)
+        self.assertIn("--primary: #c2410c;", md_engine.COMMON_STYLES)
+        self.assertIn("--primary-hover: #ea580c;", md_engine.COMMON_STYLES)
+        self.assertIn("--text-main: #0f172a;", md_engine.COMMON_STYLES)
+
+    def test_favicon_stroke_color(self):
+        self.assertIn("stroke='%23f97316'", md_engine.HTML_DOC_TEMPLATE)
+
+
+class TestMermaidDiagrams(IsolatedEnvironmentTestCase):
+    """
+    Suite de pruebas exhaustiva para el soporte de Diagramas Mermaid 100% Offline e Interactivos.
+    Verifica:
+    1. Parseo léxico y sintáctico de bloques ```mermaid.
+    2. Generación de tarjeta interactiva Apple HIG con botones "Ver código" y "Copiar".
+    3. Inyección autónoma del runtime de Mermaid embebido sin llamadas externas ni CDNs.
+    4. Omisión del script de Mermaid en documentos sin diagramas (Zero-Bloatware).
+    5. Asignación secuencial de identificadores únicos para múltiples diagramas.
+    6. Seguridad contra inyecciones XSS dentro de los nodos y etiquetas del diagrama.
+    7. Estilos de diseño, tokens de color y reglas de impresión en COMMON_STYLES.
+    """
+
+    def test_mermaid_block_parsing_and_card_structure(self):
+        md = "```mermaid\ngraph TD\n  A[Inicio] --> B[Fin]\n```"
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_mermaid"])
+        body = parsed["body"]
+        self.assertIn('class="mermaid-block" id="block-mermaid-1"', body)
+        self.assertIn('class="mermaid-header"', body)
+        self.assertIn('<span>Diagrama Mermaid</span>', body)
+        self.assertIn("toggleMermaidSource('mermaid-1', this)", body)
+        self.assertIn("copyMermaidSource('mermaid-1', this)", body)
+        self.assertIn('id="render-mermaid-1"', body)
+        self.assertIn('id="source-mermaid-1"', body)
+        self.assertIn('id="raw-mermaid-1"', body)
+        self.assertIn('style="display: none;"', body)
+        self.assertIn('A[Inicio] --&gt; B[Fin]', body)
+
+    def test_multiple_mermaid_blocks_sequential_ids(self):
+        md = """# Documento con Múltiples Diagramas
+
+```mermaid
+graph TD
+  A --> B
+```
+
+Texto intermedio explicativo.
+
+```mermaid
+sequenceDiagram
+  Alice->>Bob: Hola
+```
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_mermaid"])
+        body = parsed["body"]
+        self.assertIn('id="block-mermaid-1"', body)
+        self.assertIn('id="block-mermaid-2"', body)
+        self.assertIn("toggleMermaidSource('mermaid-1', this)", body)
+        self.assertIn("toggleMermaidSource('mermaid-2', this)", body)
+        self.assertIn('id="render-mermaid-1"', body)
+        self.assertIn('id="render-mermaid-2"', body)
+        self.assertIn('id="raw-mermaid-1"', body)
+        self.assertIn('id="raw-mermaid-2"', body)
+
+    def test_standard_code_blocks_unaffected(self):
+        md = "```python\ndef test():\n    return 42\n```"
+        parsed = md_engine.parse_markdown(md)
+        self.assertFalse(parsed["has_mermaid"])
+        body = parsed["body"]
+        self.assertNotIn("mermaid-block", body)
+        self.assertIn('class="code-block"', body)
+        self.assertIn("<span>PYTHON</span>", body)
+
+    def test_mermaid_runtime_inlined_offline_when_present(self):
+        md = "# Arquitectura de Sistema\n\n```mermaid\ngraph LR\n  Client --> Server\n```"
+        res = md_engine.convert_and_update_library(md, str(self.test_root), "Doc Con Diagrama")
+        self.assertTrue(res["success"])
+        html_path = Path(res["file_path"])
+        self.assertTrue(html_path.exists())
+
+        with open(html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Verifica runtime y funciones cliente inyectadas
+        self.assertIn("renderMermaidDiagrams", content)
+        self.assertIn("toggleMermaidSource", content)
+        self.assertIn("copyMermaidSource", content)
+        self.assertIn("mermaid.initialize", content)
+        # Verifica sincronización con alternador de tema
+        self.assertIn("if (typeof renderMermaidDiagrams === 'function')", content)
+        # Verifica ausencia total de dependencias remotas / CDNs (Zero-Bloatware / 100% Offline)
+        self.assertNotIn("cdn.jsdelivr.net", content)
+        self.assertNotIn("unpkg.com", content)
+        self.assertNotIn("cdnjs.cloudflare.com", content)
+
+    def test_mermaid_runtime_omitted_when_no_diagrams(self):
+        md = "# Documento Regular\n\nEste documento no tiene diagramas mermaid, solo texto y listas.\n- Item 1\n- Item 2"
+        res = md_engine.convert_and_update_library(md, str(self.test_root), "Doc Sin Diagrama")
+        self.assertTrue(res["success"])
+        html_path = Path(res["file_path"])
+
+        with open(html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # El runtime y controladores pesados no deben inyectarse
+        self.assertNotIn("mermaid.initialize", content)
+        self.assertNotIn("toggleMermaidSource", content)
+        # El documento debe ser ligero (< 50 KB)
+        self.assertLess(html_path.stat().st_size, 50000)
+
+    def test_mermaid_xss_protection(self):
+        md = "```mermaid\ngraph TD\n  A[\"<script>alert('xss')</script>\"] --> B\n```"
+        compiled_body = md_engine.compile_markdown_to_body(md)
+        self.assertNotIn("<script>", compiled_body)
+        self.assertIn("&lt;script&gt;", compiled_body)
+
+    def test_mermaid_css_styles_and_print_rules(self):
+        self.assertIn(".mermaid-block {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-header {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-title {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-actions {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-render {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-source {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-error {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-loading {", md_engine.COMMON_STYLES)
+        # Print media query
+        self.assertIn(".mermaid-actions { display: none !important; }", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-source { display: none !important; }", md_engine.COMMON_STYLES)
+
+
+class TestIndexMetadataCaching(unittest.TestCase):
+    """Pruebas unitarias para el sistema de caché de metadatos y aceleración de índice."""
+
+    def setUp(self):
+        self.temp_dir = Path(tempfile.mkdtemp(prefix="cache_test_"))
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_metadata_cache_persists_and_avoids_reread(self):
+        f = self.temp_dir / "doc1.html"
+        f.write_text("<!DOCTYPE html><html><head><title>Título Original</title></head><body>Hola</body></html>", encoding="utf-8")
+
+        # Primera generación: extrae de disco y crea .index_cache.json
+        md_engine.generate_index_html(self.temp_dir)
+        cache_file = self.temp_dir / ".index_cache.json"
+        self.assertTrue(cache_file.exists())
+        
+        cache = md_engine.load_index_cache(self.temp_dir)
+        self.assertIn("doc1.html", cache)
+        self.assertEqual(cache["doc1.html"]["title"], "Título Original")
+
+        # Sobrescribimos el caché con un título artificial sin tocar el archivo físico ni su mtime
+        cache["doc1.html"]["title"] = "Título En Caché Rápido"
+        md_engine.save_index_cache(self.temp_dir, cache)
+
+        # Segunda generación: debe respetar el título del caché sin abrir el archivo físico
+        index_file = md_engine.generate_index_html(self.temp_dir)
+        content = index_file.read_text(encoding="utf-8")
+        self.assertIn("Título En Caché Rápido", content)
+
+    def test_generate_index_html_uses_known_titles_without_reading_disk(self):
+        f = self.temp_dir / "doc2.html"
+        f.write_text("<!DOCTYPE html><html><head><title>Título En Disco</title></head><body>Hola</body></html>", encoding="utf-8")
+
+        # Invocamos con known_titles
+        index_file = md_engine.generate_index_html(self.temp_dir, known_titles={"doc2.html": "Título Provisto Directamente"})
+        content = index_file.read_text(encoding="utf-8")
+        self.assertIn("Título Provisto Directamente", content)
+
+        cache = md_engine.load_index_cache(self.temp_dir)
+        self.assertEqual(cache["doc2.html"]["title"], "Título Provisto Directamente")
+
+    def test_remove_from_index_cache_cleans_entry(self):
+        f = self.temp_dir / "doc3.html"
+        f.write_text("<title>Doc 3</title>", encoding="utf-8")
+        md_engine.generate_index_html(self.temp_dir)
+
+        cache = md_engine.load_index_cache(self.temp_dir)
+        self.assertIn("doc3.html", cache)
+
+        md_engine.remove_from_index_cache(self.temp_dir, "doc3.html")
+        cache_after = md_engine.load_index_cache(self.temp_dir)
+        self.assertNotIn("doc3.html", cache_after)
+
+
+class TestLatexMathRendering(IsolatedEnvironmentTestCase):
+    """
+    Suite de pruebas exhaustiva para el soporte y renderizado nativo de fórmulas
+    matemáticas LaTeX (Display Math $$...$$ e Inline Math $...$).
+    Valida:
+    1. Parseo correcto de fórmulas de bloque y en línea del usuario.
+    2. Preservación intacta de subíndices (_) y asteriscos (*) sin interferencia de Markdown.
+    3. Protección contra signos de dólar monetarios y escapados ($50 USD, \\$12,000,000).
+    4. Soporte para bloques multilínea y bloques de código ```math.
+    5. Inmunidad del detector de títulos inteligentes frente a fórmulas al inicio.
+    6. Inyección autónoma del runtime MathJax 3 100% offline (sin CDNs).
+    7. Omisión total de scripts en documentos sin matemáticas (Zero-Bloatware).
+    8. Estilos CSS de alta definición para .math-block y .math-inline.
+    """
+
+    def test_user_examples_block_and_inline(self):
+        md = r"""# Reporte Financiero
+
+$$\text{Rate Per Unit} = 9,999,999 \quad \text{y} \quad \text{Base Charge} = 2,000,001 \quad \Longrightarrow \quad \text{Total Liquidado} = \$12,000,000 \text{ COP}$$
+
+El valor liquidado fue $\text{Valor AR} = \text{Flete Pactado Base} + \text{Intermediación EDINSA (\%)}$.
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        body = parsed["body"]
+
+        # Bloque matemático
+        self.assertIn('class="math-block" id="math-block-1"', body)
+        self.assertIn(r"\text{Rate Per Unit} = 9,999,999 \quad \text{y}", body)
+        self.assertIn(r"\Longrightarrow \quad \text{Total Liquidado} = \$12,000,000 \text{ COP}", body)
+
+        # Fórmula en línea
+        self.assertIn('class="math-inline"', body)
+        self.assertIn(r"$\text{Valor AR} = \text{Flete Pactado Base} + \text{Intermediación EDINSA (\%)}$", body)
+
+    def test_subscripts_and_multiplication_not_mangled_by_markdown(self):
+        md = r"""# Álgebra
+Fórmula con subíndices: $x_1 + x_2 = y_{total}$.
+Fórmula con multiplicación: $a * b * c = d$.
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        body = parsed["body"]
+
+        # No debe haber etiquetas <em> dentro de las variables
+        self.assertNotIn("x<em>", body)
+        self.assertNotIn("y</em>", body)
+        self.assertIn(r"$x_1 + x_2 = y_{total}$", body)
+        self.assertIn(r"$a * b * c = d$", body)
+
+    def test_currency_defense_dollars_preserved(self):
+        md = r"""# Presupuesto
+El costo es $50 USD y el otro es $100 USD.
+Precio neto: \$12,000,000 COP.
+"""
+        parsed = md_engine.parse_markdown(md)
+        body = parsed["body"]
+
+        # No debe clasificar montos de moneda ordinarios como matemáticas
+        self.assertNotIn('class="math-inline"', body)
+        self.assertNotIn('class="math-block"', body)
+        self.assertIn("$50 USD y el otro es $100 USD.", body)
+
+    def test_multiline_display_math(self):
+        md = r"""# Ecuaciones de Maxwell
+$$
+\nabla \cdot \mathbf{E} = \frac{\rho}{\varepsilon_0} \\
+\nabla \cdot \mathbf{B} = 0
+$$
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        body = parsed["body"]
+
+        self.assertIn('class="math-block" id="math-block-1"', body)
+        self.assertIn(r"\nabla \cdot \mathbf{E}", body)
+        self.assertIn(r"\nabla \cdot \mathbf{B} = 0", body)
+
+    def test_fenced_code_block_math(self):
+        md = """# Cálculo
+```math
+\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}
+```
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        body = parsed["body"]
+
+        self.assertIn('class="math-block" id="math-block-1"', body)
+        self.assertIn(r"\int_{0}^{\infty}", body)
+
+    def test_smart_title_does_not_steal_math_formula(self):
+        md = r"""$$\text{Rate Per Unit} = 9,999,999 \quad \text{y} \quad \text{Base Charge} = 2,000,001 \quad \Longrightarrow \quad \text{Total Liquidado} = \$12,000,000 \text{ COP}$$
+
+$\text{Valor AR} = \text{Flete Pactado Base} + \text{Intermediación EDINSA (\%)}$
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        # El título no debe ser la fórmula ni un token
+        self.assertNotIn(r"\text{Rate Per Unit}", parsed["title"])
+        self.assertNotIn("MATH", parsed["title"])
+        # Ambas fórmulas deben estar en el cuerpo
+        self.assertIn('class="math-block"', parsed["body"])
+        self.assertIn('class="math-inline"', parsed["body"])
+
+    def test_bracket_and_parentheses_delimiters(self):
+        md = r"""# Notación TeX Alternativa
+Ecuación en corchetes: \[ E = mc^2 \]
+Ecuación en paréntesis: \( e^{i\pi} + 1 = 0 \)
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_math"])
+        body = parsed["body"]
+
+        self.assertIn('class="math-block"', body)
+        self.assertIn(r"E = mc^2", body)
+        self.assertIn('class="math-inline"', body)
+        self.assertIn(r"e^{i\pi} + 1 = 0", body)
+
+    def test_mathjax_runtime_inlined_offline_when_present(self):
+        md = r"""# Documento Con Fórmulas
+$$\text{Total} = 100$$
+"""
+        res = md_engine.convert_and_update_library(md, str(self.test_root), "Doc Con Matematicas")
+        self.assertTrue(res["success"])
+        html_path = Path(res["file_path"])
+        self.assertTrue(html_path.exists())
+
+        with open(html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Verifica configuración y runtime inyectados
+        self.assertIn("window.MathJax", content)
+        self.assertIn("inlineMath", content)
+        self.assertIn("displayMath", content)
+        # Verifica ausencia total de llamadas a CDNs y scripts remotos (Zero-Bloatware / 100% Offline)
+        self.assertNotIn('<script src="http', content)
+        self.assertNotIn('<link rel="stylesheet" href="http', content)
+        self.assertNotIn('src="https://cdn.jsdelivr.net', content)
+        self.assertNotIn('src="https://cdnjs.cloudflare.com', content)
+        self.assertNotIn('src="https://unpkg.com', content)
+
+    def test_mathjax_runtime_omitted_when_no_math_zero_bloatware(self):
+        md = """# Documento Regular
+Este documento no contiene fórmulas matemáticas.
+- Item 1
+- Item 2
+"""
+        res = md_engine.convert_and_update_library(md, str(self.test_root), "Doc Sin Matematicas")
+        self.assertTrue(res["success"])
+        html_path = Path(res["file_path"])
+
+        with open(html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # MathJax no debe inyectarse
+        self.assertNotIn("window.MathJax", content)
+        # Archivo debe ser ligero (< 50 KB)
+        self.assertLess(html_path.stat().st_size, 50000)
+
+    def test_math_css_styles_and_print_rules(self):
+        self.assertIn(".math-block {", md_engine.COMMON_STYLES)
+        self.assertIn(".math-inline {", md_engine.COMMON_STYLES)
+        self.assertIn("mjx-container[jax=\"SVG\"]", md_engine.COMMON_STYLES)
+        # Regla de impresión
+        self.assertIn("background: transparent !important;", md_engine.COMMON_STYLES)
+
+
 if __name__ == "__main__":
     unittest.main()
+
