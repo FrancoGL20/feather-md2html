@@ -98,11 +98,15 @@ class MathContext:
             self.has_math = True
             return f"{_TOKEN_INLINE_PREFIX}{idx}\x00"
 
-        text = re.sub(
-            r"(?<!\\)\$(?!\s)([^\$\n]+?)(?<!\s)(?<!\\)\$",
-            inline_repl_dollar,
-            text,
+        # Standard CommonMark/Pandoc inline math delimiters with monetary defense:
+        # 1. Opening $ not preceded by backslash, not followed by whitespace
+        # 2. Opening $ cannot be currency ($ followed by digits and currency codes, words, ranges, or punctuation)
+        # 3. Inner formula: cannot contain $, newline, or table column pipes (|)
+        # 4. Closing $ not preceded by whitespace, not preceded by backslash, and not followed by a digit
+        math_inline_regex = re.compile(
+            r"(?<!\\)\$(?!\s)(?!\d+[,\.]?\d*(?:\s*(?:MXN|USD|EUR|GBP|c/u|pesos?|dólares?|dolares?)|\s+[a-zñáéíóúA-ZÑÁÉÍÓÚ]+|\s*[–—\-]|\s*[,;:]))([^\$\n\|]+?)(?<!\s)(?<!\\)\$(?!\d)"
         )
+        text = math_inline_regex.sub(inline_repl_dollar, text)
 
         text = text.replace(_TOKEN_ESCAPED_DOLLAR, r"\$")
         return text

@@ -37,6 +37,7 @@ from md2html.core.compiler.math_protector import (
 )
 from md2html.core.compiler.title_detector import (
     detect_smart_title,
+    find_code_block_line_indices,
     format_stem_as_title,
 )
 
@@ -55,6 +56,7 @@ __all__ = [
     "compile_markdown_to_body",
     "detect_smart_title",
     "escape",
+    "find_code_block_line_indices",
     "format_status_badges",
     "format_stem_as_title",
     "generate_math_scripts",

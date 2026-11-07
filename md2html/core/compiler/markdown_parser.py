@@ -109,6 +109,33 @@ def _render_table_block(table_lines: List[str], has_separator: bool) -> str:
     )
 
 
+def _render_tsv_table_block(tsv_lines: List[str]) -> str:
+    """Renders a sequence of tab-separated lines into a .table-container HTML block."""
+    if not tsv_lines:
+        return ""
+    headers = [c.strip() for c in tsv_lines[0].split("\t")]
+    data_rows = tsv_lines[1:]
+    th_html = "".join([f"<th>{inline_formatting(h)}</th>" for h in headers])
+    tr_html = []
+    for r_line in data_rows:
+        cells = [c.strip() for c in r_line.split("\t")]
+        tds = "".join(
+            [
+                f"<td>{inline_formatting(cells[col] if col < len(cells) else '')}</td>"
+                for col in range(len(headers))
+            ]
+        )
+        tr_html.append(f"<tr>{tds}</tr>")
+    return (
+        f'<div class="table-container">\n'
+        f"  <table>\n"
+        f"    <thead><tr>{th_html}</tr></thead>\n"
+        f'    <tbody>{"".join(tr_html)}</tbody>\n'
+        f"  </table>\n"
+        f"</div>"
+    )
+
+
 def parse_markdown(
     md_text: str,
     custom_title: Optional[str] = None,
@@ -165,9 +192,9 @@ def parse_markdown(
             i += 1
             continue
 
-        if not title_line_consumed and i == title_line_idx:
+        if not title_line_consumed and i == title_line_idx and title_src in ("h1", "setext_h1"):
             title_line_consumed = True
-            i += 2 if title_src in ("setext_h1", "setext_h2") else 1
+            i += 2 if title_src == "setext_h1" else 1
             continue
 
         if stripped.startswith(_TOKEN_BLOCK_PREFIX) and stripped.endswith("\x00"):
@@ -232,7 +259,7 @@ def parse_markdown(
             continue
 
         # ATX Headings (# to ######)
-        heading_match = re.match(r"^\s*(#{1,6})\s+(.*)$", line)
+        heading_match = re.match(r"^[ ]{0,3}(#{1,6})\s+(.*)$", line)
         if heading_match:
             level = len(heading_match.group(1))
             heading_raw = heading_match.group(2).strip()
@@ -318,6 +345,23 @@ def parse_markdown(
                 i = peek
                 continue
 
+        # Tab-delimited tables (e.g. copied from Excel, Sheets, or browser previews)
+        if "\t" in line and i + 1 < n and "\t" in body_lines[i + 1]:
+            tsv_lines = [line]
+            peek = i + 1
+            col_count = len(line.split("\t"))
+            if col_count >= 2:
+                while peek < n and "\t" in body_lines[peek]:
+                    if abs(len(body_lines[peek].split("\t")) - col_count) <= 1:
+                        tsv_lines.append(body_lines[peek])
+                        peek += 1
+                    else:
+                        break
+                if len(tsv_lines) >= 2:
+                    html_blocks.append(_render_tsv_table_block(tsv_lines))
+                    i = peek
+                    continue
+
         # Horizontal Rule
         if re.match(r"^(?:[-*_]\s*){3,}$", stripped):
             html_blocks.append("<hr>")
@@ -354,6 +398,7 @@ def parse_markdown(
                     and body_lines[i + 1].strip().endswith("|")
                 )
             )
+            and not ("\t" in body_lines[i] and i + 1 < n and "\t" in body_lines[i + 1])
             and not re.match(r"^(?:[-*_]\s*){3,}$", body_lines[i].strip())
             and not is_list_marker(body_lines[i])
             and not (i + 1 < n and re.match(r"^[=\-]{3,}\s*$", body_lines[i + 1].strip()))
