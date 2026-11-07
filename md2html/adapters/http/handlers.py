@@ -209,6 +209,12 @@ def _handle_post_quit_app(req: AppRequestHandler, _payload: Dict[str, Any]) -> N
     req.send_json({"status": "quitting"})
 
 
+@router.post("/api/close-window")
+def _handle_post_close_window(req: AppRequestHandler, _payload: Dict[str, Any]) -> None:
+    closed = req._rt.close_app_window()
+    req.send_json({"success": True, "closed": closed})
+
+
 @router.post("/api/shutdown")
 def _handle_post_shutdown(req: AppRequestHandler, payload: Dict[str, Any]) -> None:
     rt = req._rt
@@ -298,6 +304,8 @@ def _handle_post_config(req: AppRequestHandler, payload: Dict[str, Any]) -> None
             return
     if "auto_open" in payload:
         config["auto_open"] = bool(payload["auto_open"])
+    if "close_on_convert" in payload:
+        config["close_on_convert"] = bool(payload["close_on_convert"])
     if "system_tray_enabled" in payload:
         config["system_tray_enabled"] = bool(payload["system_tray_enabled"])
     if "close_to_tray" in payload:

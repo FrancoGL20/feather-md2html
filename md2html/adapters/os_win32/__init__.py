@@ -29,6 +29,7 @@ from md2html.adapters.os_win32.window_manager import (
     find_and_adjust_app_window,
     find_app_hwnds,
     get_dynamic_window_geometry,
+    close_app_window,
     is_app_window_alive,
 )
 
@@ -43,6 +44,7 @@ __all__ = [
     "acquire_single_instance_lock",
     "choose_file_native",
     "choose_folder_native",
+    "close_app_window",
     "find_and_adjust_app_window",
     "find_app_hwnds",
     "find_free_port",

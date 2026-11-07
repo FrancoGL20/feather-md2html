@@ -43,6 +43,7 @@ class JsonConfigRepository:
         config: Dict[str, Any] = {
             "root_dir": str(default_root),
             "auto_open": True,
+            "close_on_convert": False,
             "system_tray_enabled": True,
             "close_to_tray": True,
             "first_tray_notification_shown": False,
