@@ -1,4 +1,4 @@
-let currentConfig = { root_dir: '', auto_open: true };
+let currentConfig = { root_dir: '', auto_open: true, close_on_convert: false };
 let activeTab = 'text';
 let selectedFilePath = '';
 let lastGeneratedResult = null;
@@ -39,7 +39,11 @@ async function loadConfig() {
     currentConfig = data;
     document.getElementById('currentDirPath').textContent = data.root_dir;
     document.getElementById('currentDirPath').title = data.root_dir;
-    document.getElementById('autoOpenToggle').checked = data.auto_open;
+    document.getElementById('autoOpenToggle').checked = !!data.auto_open;
+    const closeToggle = document.getElementById('closeOnConvertToggle');
+    if (closeToggle) {
+      closeToggle.checked = !!data.close_on_convert;
+    }
     renderRecentList(data.recent_conversions || []);
   } catch (err) {
     console.error('Error cargando configuración:', err);
@@ -113,12 +117,81 @@ async function deleteRecentDoc(filename, filePath, docTitle) {
   }
 }
 
+function updateHeroButtons() {
+  const pasteBtn = document.getElementById('pasteAndConvertBtn');
+  const convertBtn = document.getElementById('convertBtn');
+  if (!pasteBtn || !convertBtn) return;
+
+  if (activeTab === 'file') {
+    // Primary button converts the file
+    pasteBtn.onclick = performConversion;
+    pasteBtn.title = "Convierte el archivo seleccionado a documento HTML";
+    const mainLabel = pasteBtn.querySelector('.btn-hero-main-label');
+    if (mainLabel) {
+      mainLabel.innerHTML = `
+        <span style="font-size: 1.05rem;">📄⚡</span>
+        <span>Convertir Archivo</span>
+      `;
+    }
+    const subLabel = pasteBtn.querySelector('.btn-hero-sub-label');
+    if (subLabel) {
+      subLabel.textContent = "Convierte el .md seleccionado";
+    }
+
+    // Secondary button offers paste & convert
+    convertBtn.onclick = pasteAndConvert;
+    convertBtn.title = "Pega el portapapeles y compila a HTML";
+    const secMainLabel = convertBtn.querySelector('.btn-hero-main-label');
+    if (secMainLabel) {
+      secMainLabel.innerHTML = `
+        <span>📋</span>
+        <span>Pegar y Convertir</span>
+      `;
+    }
+    const secSubLabel = convertBtn.querySelector('.btn-hero-sub-label');
+    if (secSubLabel) {
+      secSubLabel.textContent = "(Portapapeles)";
+    }
+  } else {
+    // Text tab: Primary button is Paste & Convert
+    pasteBtn.onclick = pasteAndConvert;
+    pasteBtn.title = "Pega el portapapeles y compila a HTML en un solo clic (Ctrl+Shift+V)";
+    const mainLabel = pasteBtn.querySelector('.btn-hero-main-label');
+    if (mainLabel) {
+      mainLabel.innerHTML = `
+        <span style="font-size: 1.05rem;">📋⚡</span>
+        <span>Pegar y Convertir</span>
+      `;
+    }
+    const subLabel = pasteBtn.querySelector('.btn-hero-sub-label');
+    if (subLabel) {
+      subLabel.textContent = "1 Clic · Portapapeles (Ctrl+Shift+V)";
+    }
+
+    // Secondary button converts current textarea
+    convertBtn.onclick = performConversion;
+    convertBtn.title = "Convierte el texto actual";
+    const secMainLabel = convertBtn.querySelector('.btn-hero-main-label');
+    if (secMainLabel) {
+      secMainLabel.innerHTML = `
+        <span>⚡</span>
+        <span>Convertir Actual</span>
+      `;
+    }
+    const secSubLabel = convertBtn.querySelector('.btn-hero-sub-label');
+    if (secSubLabel) {
+      secSubLabel.textContent = "(Ctrl + Enter)";
+    }
+  }
+}
+
 function switchTab(tab) {
   activeTab = tab;
   document.getElementById('tabTextBtn').classList.toggle('active', tab === 'text');
   document.getElementById('tabFileBtn').classList.toggle('active', tab === 'file');
   document.getElementById('tabTextContent').classList.toggle('active', tab === 'text');
   document.getElementById('tabFileContent').classList.toggle('active', tab === 'file');
+  updateHeroButtons();
 }
 
 async function toggleAutoOpen() {
@@ -130,6 +203,28 @@ async function toggleAutoOpen() {
     body: JSON.stringify({ auto_open: isChecked })
   });
   showToast(isChecked ? 'Abrir automáticamente: ACTIVADO' : 'Abrir automáticamente: DESACTIVADO');
+}
+
+async function toggleCloseOnConvert() {
+  const isChecked = document.getElementById('closeOnConvertToggle').checked;
+  currentConfig.close_on_convert = isChecked;
+  await fetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ close_on_convert: isChecked })
+  });
+  showToast(isChecked ? 'Cerrar ventana al convertir: ACTIVADO' : 'Cerrar ventana al convertir: DESACTIVADO');
+}
+
+async function closeAppWindow() {
+  try {
+    await fetch('/api/close-window', { method: 'POST' });
+  } catch (e) {
+    console.warn('Aviso cerrando ventana vía API:', e);
+  }
+  try {
+    window.close();
+  } catch (e) {}
 }
 
 async function browseFolder() {
@@ -166,6 +261,7 @@ async function browseFile() {
       document.getElementById('selectedFileName').textContent = data.filename;
       document.getElementById('selectedFileBadge').style.display = 'flex';
       document.getElementById('dropzone').style.display = 'none';
+      updateHeroButtons();
     }
   } catch (e) {
     console.error('Error seleccionando archivo:', e);
@@ -300,6 +396,10 @@ async function performConversion() {
       document.getElementById('resultPath').textContent = data.file_path;
       document.getElementById('resultCard').style.display = 'flex';
       showToast('¡HTML generado exitosamente!');
+      const closeToggle = document.getElementById('closeOnConvertToggle');
+      if (closeToggle && closeToggle.checked) {
+        setTimeout(closeAppWindow, 250);
+      }
       loadConfig();
     } else {
       showToast('Error: ' + (data.error || 'No se pudo convertir'));
@@ -380,6 +480,26 @@ if (dropzone) {
     }
   });
 }
+
+// Window-level Drag & Drop support
+window.addEventListener('dragover', (e) => {
+  e.preventDefault();
+});
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const files = e.dataTransfer && e.dataTransfer.files;
+  if (files && files.length > 0) {
+    const file = files[0];
+    const reader = new FileReader();
+    reader.onload = (re) => {
+      document.getElementById('markdownInput').value = re.target.result;
+      switchTab('text');
+      updateCounters();
+      showToast(`Cargado contenido de ${file.name}`);
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+});
 
 document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'V' || e.key === 'v')) {
