@@ -22,7 +22,9 @@ Todo agente que interactúe con este repositorio debe clasificar el requerimient
 
 > [!CAUTION]
 > ### REGLA DE ORO INVIOLABLE: NUNCA DESARROLLAR DIRECTAMENTE EN `develop` NI EN `master`
-> Antes de escribir una sola línea de código, crear un archivo nuevo o modificar una prueba, el agente **DEBE OBLIGATORIAMENTE crear y posicionarse en la rama de trabajo correspondiente**. No se tolerará código huérfano ni commits directos en ramas principales.
+> 1. **Ramificación Obligatoria:** Antes de escribir una sola línea de código, crear un archivo nuevo o modificar una prueba, el agente **DEBE OBLIGATORIAMENTE crear y posicionarse en la rama de trabajo correspondiente**. No se tolerará código huérfano ni commits directos en ramas principales.
+> 2. **Aislamiento de `master`:** La rama `master` representa código de producción y solo se modifica mediante releases oficiales (`release/*`) o revisiones de emergencia (`hotfix/*`) con tags semánticos (`vX.Y.Z`). Ningún feature ni bugfix ordinario debe fusionarse a `master`.
+> 3. **Prohibición de `git merge master` en `develop`:** En ningún caso se debe ejecutar `git merge master` ni `git merge origin/master` dentro de `develop` si `master` contiene commits que no provienen de un release tag oficial. Si `develop` requiere sincronizarse con un release, se debe hacer referencia explícita al tag semántico (`git merge vX.Y.Z`).
 
 ### Ciclo de 8 Fases Obligatorio del Desarrollador Profesional:
 
