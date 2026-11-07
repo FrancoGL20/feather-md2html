@@ -204,7 +204,7 @@ graph TD
 ````
 
 **Funcionalidades integradas:**
-- **Tarjeta Responsiva Mermaid:** Cabecera con titulo `DIAGRAMA MERMAID`, visor de codigo fuente interactivo y boton de copiado con confirmacion visual (`✓ Copiado`).
+- **Tarjeta Responsiva Mermaid:** Cabecera con titulo `DIAGRAMA MERMAID`, visor de codigo fuente interactivo, boton de copiado con confirmacion visual (`✓ Copiado`) y menu **Exportar ▾** para abrir en nueva pestaña o descargar en **SVG** (vectorial infinito), **PNG** (Ultra-HD con escala adaptativa 3x/4x) y **JPG** con fondo solido adaptado al tema.
 - **Formulas Matematicas Vectoriales:** Renderizado SVG nitido mediante MathJax 3 offline (`assets/tex-svg.min.js`) adaptable automaticamente al color del texto del tema activo.
 - **Optimizacion de Tamano (Zero-Bloat):** Si el documento no incluye diagramas Mermaid ni formulas matematicas, se omiten por completo los bundles JavaScript, preservando archivos ligeros (< 50 KB) y compilaciones en < 20 ms.
 
