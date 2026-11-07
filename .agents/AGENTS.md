@@ -185,7 +185,9 @@ El parser implementa un compilador de un solo paso que procesa el documento lín
    - Contenedor SVG centrado responsivo con soporte para temas claro/oscuro dinámicos.
    - Runtime embebido offline: `assets/mermaid.min.js` (Mermaid 11.x) se inyecta de forma autónoma en el documento HTML únicamente cuando existen diagramas Mermaid, garantizando documentos autocontenidos y portables sin conexiones remotas ni dependencias de red.
    - Sincronización en caliente con el botón de alternancia de tema (`toggleTheme()` re-renderiza con la paleta `dark` o `default`).
-   - Manejo defensivo de errores sintácticos con alerta visual y auto-despliegue del código fuente.
+   - Auto-reparación defensiva de sintaxis (Self-Healing): El analizador sintáctico normaliza previamente patrones no estándar comunes como flechas gruesas invertidas (`<==|` -> `<==>|`), flechas delgadas invertidas (`<--|` -> `<-->|`), flechas independientes sin punta hacia adelante (` <== ` -> ` <==> `, ` <-- ` -> ` <--> `) y flechas entre comillas (`<== "..." ==` -> `<== "..." ==>`), garantizando que diagramas de topología de red o flujos intuitivos se compilen sin fallos.
+   - Tolerancia a fallos y reintento en caliente en cliente JS: En caso de que un diagrama arroje una excepción sintáctica en `mermaid.render()`, el cliente JavaScript ejecuta `autoRepairMermaid()` e intenta compilar la versión auto-reparada (`-repaired`) antes de emitir cualquier aviso visual.
+   - Manejo defensivo de errores sintácticos con alerta visual y auto-despliegue del código fuente en caso de fallo irrecuperable.
    - En documentos sin diagramas Mermaid, se omite completamente el bundle de scripts (Zero-Bloatware), preservando un tamaño de archivo mínimo (< 50 KB) y tiempos de compilación de < 20 ms.
 9. **Fórmulas Matemáticas LaTeX 100% Offline y Vectoriales (`math_protector.py` + `math_engine.py`):**
    - Módulo desacoplado en `md2html/core/compiler/math_protector.py` (con fachada en `math_engine.py`): encapsula la detección, tokenización defensiva, inyección de runtime y estilos tipográficos matemáticos (`md2html/templates/styles/math.css`).
@@ -250,6 +252,9 @@ Para garantizar portabilidad y autocontención absoluta sin vulnerar la premisa 
 3. **Decodificación Segura (Anti-XSS):** Los datos fuente del diagrama se almacenan en un `<div id="raw-..." style="display: none;">` escapado con `html.escape()`. El controlador cliente en JavaScript (`md2html/templates/scripts/mermaid_client.js`) lee `.textContent`, el cual es decodificado de forma nativa por el DOM sin ejecutar etiquetas `<script>` maliciosas.
 4. **Sincronización Bidireccional de Tema:** Cuando el usuario alterna entre tema oscuro y claro (`toggleTheme()`), se invoca automáticamente `renderMermaidDiagrams()`, la cual reinicializa Mermaid con `theme: 'dark'` o `theme: 'default'` y recompila los SVGs en caliente.
 5. **Aislamiento en Impresión:** La regla `@media print` oculta los botones de acción y el visor de código fuente, preservando únicamente el diagrama SVG centrado y limpio para generación de PDFs o impresión en papel.
+6. **Auto-Recuperación y Resiliencia en Doble Capa (Self-Healing Engine):**
+   - **Capa de Compilador Python (`sanitize_mermaid_code` en `markdown_parser.py`):** Normaliza de forma preventiva flechas gruesas y delgadas no válidas hacia la sintaxis estándar bidireccional (`<==>` y `<-->`), asegurando que el código inyectado en los contenedores `raw-*` y `source-*` sea válido.
+   - **Capa de Cliente JavaScript (`autoRepairMermaid` en `mermaid_client.js`):** Proporciona un mecanismo de reintento dinámico. Si la invocación a `mermaid.render()` falla, aplica la corrección sobre el código fuente y reintenta con un identificador `-repaired`, inyectando el SVG final de manera completamente transparente al usuario.
 
 ---
 
