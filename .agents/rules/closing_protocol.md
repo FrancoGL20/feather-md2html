@@ -9,9 +9,9 @@ Esta regla es de cumplimiento **obligatorio** para todo agente al finalizar una 
 > Al finalizar cualquier implementación, corrección o ticket, el agente **DEBE SIEMPRE Y SIN EXCEPCIÓN** entregar al final de su respuesta la secuencia completa de comandos Git lista para copiar y ejecutar en un solo bloque. Esta secuencia debe incluir:
 > 1. Creación o posicionamiento en la rama de trabajo (`git checkout -b bugfix/<nombre>` o `feature/<nombre>`).
 > 2. `git add` y `git commit -m "..."` semánticos y atómicos.
-> 3. Cambio a la rama de integración (`git checkout develop` o `master`).
+> 3. Retorno exclusivo a develop (`git checkout develop`). Solo releases o hotfixes oficiales tocan `master`.
 > 4. Merge sin fast-forward: `git merge --no-ff <rama> -m "merge: ..."`
-> 5. Publicación en el repositorio remoto: `git push origin <rama_destino>`.
+> 5. Publicación en el repositorio remoto: `git push origin develop`.
 > 6. Cierre y eliminación limpia de la rama local: `git branch -d <rama>`.
 > De esta forma, el usuario puede probar la solución y cerrar/enviar el ciclo completo a GitHub en ese mismo momento sin pasos faltantes.
 
@@ -69,9 +69,9 @@ graph TD
    - **💻 Comandos Estandarizados de Git:** Bloque de comandos listo para copiar/ejecutar con:
      1. Creación/cambio a rama de feature si aplica (`git checkout -b feature/<nombre>`).
      2. `git add` y `git commit` semánticos atómicos (`feat:`, `test:`, `docs:`).
-      3. Retorno a la rama de integración (`git checkout develop` o `git checkout master`).
+       3. Retorno exclusivo a la rama de integración (`git checkout develop`).
       4. Fusión formal preservando la historia (`git merge --no-ff <tipo>/<nombre> -m "merge: ..."`).
-      5. Publicación remota (`git push origin develop` o `git push origin master`).
+       5. Publicación remota (`git push origin develop`).
       6. Limpieza final de la rama (`git branch -d <tipo>/<nombre>`).
 6. **Paso 6: Retrospectiva y Propuesta de Auto-mejora Continua:**
    - **Caso 1: No se identificaron mejoras al contexto:**
