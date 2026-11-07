@@ -30,6 +30,21 @@ from md2html.core.compiler.title_detector import detect_smart_title
 from md2html.templates.icons import ALERT_ICONS, ICON_CODE, ICON_COPY, ICON_DIAGRAM
 
 
+def sanitize_mermaid_code(code: str) -> str:
+    """Normalizes non-standard reverse and bidirectional arrows into valid Mermaid flowchart syntax."""
+    # Repair reverse thick arrow with label: A <==|text| B -> A <==>|text| B
+    code = re.sub(r"<==\|", "<==>|", code)
+    # Repair reverse thin arrow with label: A <--|text| B -> A <-->|text| B
+    code = re.sub(r"<--\|", "<-->|", code)
+    # Repair reverse arrows with quoted strings missing closing arrow: A <== "text" == B -> A <== "text" ==> B
+    code = re.sub(r'(<==\s*"[^"]*"\s*)==(?=\s)', r"\1==>", code)
+    code = re.sub(r'(<--\s*"[^"]*"\s*)--(?=\s)', r"\1-->", code)
+    # Repair stand-alone invalid reverse arrows: A <== B -> A <==> B (only when not followed by quoted text)
+    code = re.sub(r'(?<=\s)<==(?=\s+(?!"))', "<==>", code)
+    code = re.sub(r'(?<=\s)<--(?=\s+(?!"))', "<-->", code)
+    return code
+
+
 def _build_mermaid_card_html(diag_id: str, esc_code: str) -> str:
     """Builds the interactive HTML container for a Mermaid diagram block."""
     return (
@@ -236,6 +251,7 @@ def parse_markdown(
                 mermaid_count += 1
                 has_mermaid = True
                 diag_id = f"mermaid-{mermaid_count}"
+                code_raw = sanitize_mermaid_code(code_raw)
                 html_blocks.append(_build_mermaid_card_html(diag_id, escape(code_raw)))
                 continue
 
