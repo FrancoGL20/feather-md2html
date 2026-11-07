@@ -213,6 +213,24 @@ class TestAppAPI(IsolatedEnvironmentTestCase):
         status2, _, data2 = self._http_post_json("/api/delete-document", {"filename": "latest.html"})
         self.assertEqual(status2, 400)
 
+    @patch("app.close_app_window", return_value=True)
+    def test_post_close_window(self, mock_close):
+        status, _, data = self._http_post_json("/api/close-window")
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("success"))
+        self.assertTrue(data.get("closed"))
+        mock_close.assert_called_once()
+
+    def test_post_config_updates_close_on_convert(self):
+        status, _, data = self._http_post_json("/api/config", {"close_on_convert": True})
+        self.assertEqual(status, 200)
+        self.assertTrue(data.get("close_on_convert"))
+        saved_cfg = json.loads(self.test_config.read_text(encoding="utf-8"))
+        self.assertTrue(saved_cfg.get("close_on_convert"))
+        status2, _, data2 = self._http_post_json("/api/config", {"close_on_convert": False})
+        self.assertEqual(status2, 200)
+        self.assertFalse(data2.get("close_on_convert"))
+
     def test_post_adjust_window(self):
         status, _, data = self._http_post_json("/api/adjust-window", {
             "screen_w": 1920,

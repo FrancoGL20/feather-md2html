@@ -101,5 +101,30 @@ class TestWindowGeometry(unittest.TestCase):
         self.assertEqual(th_inv, 680)
 
 
+    def test_close_app_window_posts_wm_close(self):
+        from unittest.mock import patch
+        from md2html.core.services.lifecycle_service import AppLifecycleState
+        from md2html.adapters.os_win32.window_manager import close_app_window
+
+        state = AppLifecycleState()
+        state.tracked_app_hwnds = {10101}
+
+        with patch("ctypes.windll.user32.IsWindow", return_value=1) as mock_is_window, \
+             patch("ctypes.windll.user32.PostMessageW", return_value=1) as mock_post:
+            result = close_app_window(state)
+            self.assertTrue(result)
+            mock_is_window.assert_called_with(10101)
+            mock_post.assert_called_once_with(10101, 0x0010, 0, 0)
+
+    def test_close_app_window_no_hwnds_returns_false(self):
+        from md2html.core.services.lifecycle_service import AppLifecycleState
+        from md2html.adapters.os_win32.window_manager import close_app_window
+
+        state = AppLifecycleState()
+        state.tracked_app_hwnds = set()
+        result = close_app_window(state, find_hwnds_fn=lambda: [])
+        self.assertFalse(result)
+
+
 if __name__ == "__main__":
     unittest.main()
