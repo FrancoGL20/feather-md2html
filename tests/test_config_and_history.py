@@ -30,6 +30,7 @@ class TestConfigAndHistory(IsolatedEnvironmentTestCase):
         self.assertTrue(self.test_config.exists())
         self.assertIn("root_dir", config)
         self.assertTrue(config["auto_open"])
+        self.assertFalse(config.get("close_on_convert", True))
         self.assertEqual(config["recent_conversions"], [])
 
     def test_corrupted_config_recovery(self):

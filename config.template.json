@@ -1,6 +1,7 @@
 {
   "root_dir": "",
   "auto_open": true,
+  "close_on_convert": false,
   "system_tray_enabled": true,
   "close_to_tray": true,
   "first_tray_notification_shown": false,

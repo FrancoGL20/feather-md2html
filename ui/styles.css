@@ -211,6 +211,13 @@ body {
   flex-wrap: wrap;
 }
 
+.switches-group {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
 /* Toggle Switch */
 .switch-label {
   display: inline-flex;

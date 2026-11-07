@@ -61,11 +61,12 @@ Todo agente que interactúe con este repositorio debe clasificar el requerimient
      - `docs(<scope>): ...` para documentación, manuales y reglas de contexto.
      - `refactor(<scope>): ...` para reestructuraciones sin cambio de funcionalidad.
 
-7. **Fase 7: Merge Limpio con `--no-ff` y Limpieza de Ramas:**
+7. **Fase 7: Merge Limpio con `--no-ff`, Push y Limpieza de Ramas:**
    - Asegurar que la suite completa pase al 100% en la rama de trabajo.
    - Cambiar a `develop`: `git checkout develop`.
    - Integrar sin fast-forward: `git merge --no-ff feature/<nombre> -m "merge: feature/<nombre> into develop"`.
    - Re-ejecutar `python run_tests.py` sobre `develop` para certificar la integración.
+   - Publicar los cambios en el remoto: `git push origin develop` (y `git push origin master` si es un release/hotfix).
    - Eliminar la rama local de trabajo: `git branch -d feature/<nombre>`.
 
 8. **Fase 8: Cierre de Ticket, Resumen Estandarizado y Comandos Git:**

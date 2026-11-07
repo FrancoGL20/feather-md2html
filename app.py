@@ -42,6 +42,7 @@ from md2html.adapters.os_win32 import (
     acquire_single_instance_lock as _acquire_mutex,
     choose_file_native,
     choose_folder_native,
+    close_app_window as _close_hwnd,
     find_and_adjust_app_window as _adjust_hwnd,
     find_app_hwnds,
     find_free_port,
@@ -109,6 +110,11 @@ def cancel_scheduled_shutdown(force: bool = True) -> None:
 def acquire_single_instance_lock() -> Any:
     """Acquires the Windows Named Mutex or wakes the existing application instance."""
     return _acquire_mutex(SINGLE_INSTANCE_MUTEX_NAME, DEFAULT_PORT)
+
+
+def close_app_window() -> bool:
+    """Closes the active application window while preserving the tray and background server."""
+    return _close_hwnd(_lifecycle, find_hwnds_fn=find_app_hwnds)
 
 
 def is_app_window_alive() -> Optional[bool]:

@@ -99,6 +99,19 @@ class TestCleanMarkdownInline(unittest.TestCase):
 class TestSmartTitleDetection(unittest.TestCase):
     """Test heuristic and hierarchical title detection."""
 
+    def test_initial_link_is_preserved_in_body_when_no_h1(self):
+        text = "[lista de candidatos de la CAMe/SEDEMA](https://verificacionvehicular.sedema.cdmx.gob.mx/Listado/)"
+        parsed = md_engine.parse_markdown(text)
+        self.assertEqual(parsed["title"], "lista de candidatos de la CAMe/SEDEMA")
+        self.assertIn('<a href="https://verificacionvehicular.sedema.cdmx.gob.mx/Listado/"', parsed["body"])
+
+    def test_initial_bullet_list_of_links_preserved_in_body(self):
+        text = "- [lista de candidatos de la CAMe/SEDEMA](https://verificacionvehicular.sedema.cdmx.gob.mx/Listado/)\n- [otro link](https://ejemplo.com)"
+        parsed = md_engine.parse_markdown(text)
+        self.assertIn('<a href="https://verificacionvehicular.sedema.cdmx.gob.mx/Listado/"', parsed["body"])
+        self.assertIn('<a href="https://ejemplo.com"', parsed["body"])
+    """Test heuristic and hierarchical title detection."""
+
     def test_custom_title_highest_priority(self):
         lines = ["# Título en H1", "Contenido"]
         title, src, idx = md_engine.detect_smart_title(lines, custom_title="Título Personalizado")
@@ -167,6 +180,96 @@ class TestSmartTitleDetection(unittest.TestCase):
         title, src, _ = md_engine.detect_smart_title(lines)
         self.assertTrue(title.startswith("Documento Markdown"))
         self.assertEqual(src, "fallback")
+    def test_code_block_comments_do_not_steal_h1_title(self):
+        lines = [
+            "Intro text",
+            "```python",
+            "# Fake H1 Title Comment",
+            "def foo():",
+            "    pass",
+            "```",
+            "### Real Title H3",
+        ]
+        title, src, idx = md_engine.detect_smart_title(lines)
+        self.assertEqual(title, "Real Title H3")
+        self.assertEqual(src, "h3")
+        self.assertEqual(idx, 6)
+
+    def test_user_case_cucumber_optional_group(self):
+        text = """Analyzed map_feature_steps.py:L40-100
+Analyzed map_feature_steps.py:L100-140
+
+**Sí, funciona al 100% y es totalmente estándar y nativo tanto en Katalon como en Cucumber y en el mapeador.**
+
+Aquí te explico los detalles técnicos de por qué funciona:
+
+---
+
+### 1. ¿Qué significa `(s)` en Cucumber Expressions?
+
+Katalon Studio utiliza internamente **Cucumber-JVM**.
+
+```python
+elif c == "(":
+    # Grupo opcional de Cucumber: (texto)
+    inner = expr[i + 1 : j]
+```
+"""
+        parsed = md_engine.parse_markdown(text)
+        self.assertEqual(parsed["title"], "1. ¿Qué significa (s) en Cucumber Expressions?")
+        lines = text.splitlines()
+        title, src, idx = md_engine.detect_smart_title(lines)
+        self.assertEqual(title, "1. ¿Qué significa (s) en Cucumber Expressions?")
+        self.assertEqual(src, "h3")
+        self.assertEqual(idx, 9)
+
+    def test_no_headings_with_code_block_falls_back_to_first_line(self):
+        lines = [
+            "Analyzed map_feature_steps.py:L40-100",
+            "Analyzed map_feature_steps.py:L100-140",
+            "```python",
+            "# Comment inside code",
+            "print('hello')",
+            "```",
+        ]
+        title, src, idx = md_engine.detect_smart_title(lines)
+        self.assertIn("Analyzed", title)
+        self.assertEqual(src, "first_line")
+        self.assertEqual(idx, 0)
+
+    def test_headings_h4_to_h6_detected_when_no_higher_headings(self):
+        lines_h4 = ["#### Configuración Avanzada de Red", "Detalles..."]
+        title, src, idx = md_engine.detect_smart_title(lines_h4)
+        self.assertEqual(title, "Configuración Avanzada de Red")
+        self.assertEqual(src, "h4")
+
+        lines_h5 = ["##### Parámetro Específico", "Detalles..."]
+        title, src, idx = md_engine.detect_smart_title(lines_h5)
+        self.assertEqual(title, "Parámetro Específico")
+        self.assertEqual(src, "h5")
+
+        lines_h6 = ["###### Detalle Mínimo", "Detalles..."]
+        title, src, idx = md_engine.detect_smart_title(lines_h6)
+        self.assertEqual(title, "Detalle Mínimo")
+        self.assertEqual(src, "h6")
+
+    def test_nested_fences_and_tildes_handled_defensively(self):
+        lines = [
+            "````markdown",
+            "```python",
+            "# Python comment in markdown sample",
+            "```",
+            "````",
+            "~~~bash",
+            "# Bash comment in tilde block",
+            "~~~",
+            "## Título Legítimo Después de Bloques",
+        ]
+        title, src, idx = md_engine.detect_smart_title(lines)
+        self.assertEqual(title, "Título Legítimo Después de Bloques")
+        self.assertEqual(src, "h2")
+        self.assertEqual(idx, 8)
+
 
 
 class TestStatusBadges(unittest.TestCase):
@@ -226,6 +329,56 @@ class TestInlineFormatting(unittest.TestCase):
         res = md_engine.inline_formatting(text)
         self.assertIn('href="#seccion-de-pruebas"', res)
         self.assertNotIn('target="_blank"', res)
+
+    def test_markdown_link_came_sedema_exact_example(self):
+        text = "[lista de candidatos de la CAMe/SEDEMA](https://verificacionvehicular.sedema.cdmx.gob.mx/Listado/)"
+        res = md_engine.inline_formatting(text)
+        self.assertIn('href="https://verificacionvehicular.sedema.cdmx.gob.mx/Listado/"', res)
+        self.assertIn('target="_blank"', res)
+        self.assertIn('rel="noopener noreferrer"', res)
+        self.assertIn(">lista de candidatos de la CAMe/SEDEMA</a>", res)
+
+    def test_markdown_links_internet_protocols(self):
+        res_https = md_engine.inline_formatting("[Seguro](https://example.com)")
+        res_http = md_engine.inline_formatting("[Inseguro](http://example.com)")
+        res_mail = md_engine.inline_formatting("[Contacto](mailto:soporte@cdmx.gob.mx)")
+        res_domain = md_engine.inline_formatting("[Web](www.ejemplo.com)")
+        self.assertIn('href="https://example.com"', res_https)
+        self.assertIn('href="http://example.com"', res_http)
+        self.assertIn('href="mailto:soporte@cdmx.gob.mx"', res_mail)
+        self.assertIn('href="https://www.ejemplo.com"', res_domain)
+        for r in (res_https, res_http, res_mail, res_domain):
+            self.assertIn('target="_blank"', r)
+            self.assertIn('rel="noopener noreferrer"', r)
+
+    def test_markdown_links_file_protocols_deactivated(self):
+        self.assertEqual(md_engine.inline_formatting("[Manual](manual.pdf)"), "Manual")
+        self.assertEqual(md_engine.inline_formatting(r"[Reporte](C:\Users\doc.docx)"), "Reporte")
+        self.assertEqual(md_engine.inline_formatting("[Nota](file:///C:/doc.txt)"), "Nota")
+        self.assertEqual(md_engine.inline_formatting("[Especificacion](spec.md)"), "Especificacion")
+        self.assertEqual(md_engine.inline_formatting(r"[Red](\\servidor\share\doc.xlsx)"), "Red")
+
+    def test_markdown_links_with_optional_titles(self):
+        text = '[Google](https://www.google.com "Buscador Google")'
+        res = md_engine.inline_formatting(text)
+        self.assertIn('href="https://www.google.com"', res)
+        self.assertIn('title="Buscador Google"', res)
+        self.assertIn('target="_blank"', res)
+
+    def test_autolinks_angle_brackets(self):
+        text = "Visita <https://verificacionvehicular.sedema.cdmx.gob.mx/Listado/> para mas datos"
+        res = md_engine.inline_formatting(text)
+        self.assertIn('<a href="https://verificacionvehicular.sedema.cdmx.gob.mx/Listado/" target="_blank" rel="noopener noreferrer">https://verificacionvehicular.sedema.cdmx.gob.mx/Listado/</a>', res)
+
+        mail_text = "Escribe a <soporte@ejemplo.com>"
+        mail_res = md_engine.inline_formatting(mail_text)
+        self.assertIn('<a href="mailto:soporte@ejemplo.com" target="_blank" rel="noopener noreferrer">soporte@ejemplo.com</a>', mail_res)
+
+    def test_web_url_pointing_to_pdf_is_treated_as_internet_link(self):
+        text = "[Boletin Oficial](https://sedema.cdmx.gob.mx/boletin.pdf)"
+        res = md_engine.inline_formatting(text)
+        self.assertIn('href="https://sedema.cdmx.gob.mx/boletin.pdf"', res)
+        self.assertIn('target="_blank"', res)
 
     def test_image_rendering(self):
         text = "![Diagrama de Arquitectura](assets/arch.png)"
@@ -792,6 +945,65 @@ Este documento no contiene fórmulas matemáticas.
         self.assertNotIn("window.MathJax", content)
         # Archivo debe ser ligero (< 50 KB)
         self.assertLess(html_path.stat().st_size, 50000)
+
+    def test_currency_in_tables_does_not_break_columns_or_inject_mathjax(self):
+        md = """# Presupuesto de Seguridad
+
+| Criterio | Opción 1 | Opción 2 | Opción 3 |
+| :--- | :--- | :--- | :--- |
+| **Costo Mensual** | **$0 MXN** *(R2 es gratis hasta 10 GB; ~$5 MXN/mes)* | **$0 MXN** | **$0 MXN** |
+| **Presupuesto Total** | **~$15,500 – $17,800 MXN** *(~$775 – $890 USD)* | **~$11,800 – $13,900 MXN** *(~$590 – $695 USD)* | **~$23,500 – $27,200 MXN** *(~$1,175 – $1,360 USD)* |
+| **MicroSD** | $420 – $560 *(~$210 – $280 c/u)* | $420 – $560 | $420 – $560 |
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertFalse(parsed["has_math"], "La tabla con precios en pesos/dólares no debe marcar has_math=True")
+        body = parsed["body"]
+        self.assertNotIn("math-inline", body)
+        self.assertNotIn("math-block", body)
+        self.assertIn('<div class="table-container">', body)
+
+        # Verificar que la fila de Presupuesto conserve exactamente 4 celdas <td> y no se fusionen
+        self.assertIn("<strong>Presupuesto Total</strong>", body)
+        self.assertIn("~$15,500 – $17,800 MXN", body)
+        self.assertIn("~$11,800 – $13,900 MXN", body)
+        self.assertIn("~$23,500 – $27,200 MXN", body)
+
+        # Ninguna celda debe contener la barra pipe cruda "|" dentro del HTML
+        import re
+        tds = re.findall(r'<td[^>]*>(.*?)</td>', body)
+        self.assertEqual(len(tds), 12, "Debe haber exactamente 12 celdas <td> (3 filas x 4 columnas)")
+        for td in tds:
+            self.assertNotIn("|", td, f"La celda contiene una barra pipe no parseada: {td}")
+
+    def test_indented_comments_in_code_or_yaml_not_treated_as_heading(self):
+        md = """# Documento Principal
+
+```yaml
+services:
+  # 1. Comentario de configuración indentado
+  frigate:
+    image: test
+```
+"""
+        parsed = md_engine.parse_markdown(md)
+        self.assertEqual(parsed["title"], "Documento Principal")
+        self.assertNotIn("Comentario de configuración", parsed["title"])
+        self.assertNotIn('<h1 id="1-comentario', parsed['body'])
+
+    def test_tsv_table_rendering(self):
+        md = """# Reporte con Tablas de Hoja de Cálculo
+
+Criterio	Opción A	Opción B
+Precio	$100 USD	$200 USD
+Garantía	1 año	2 años
+"""
+        parsed = md_engine.parse_markdown(md)
+        body = parsed["body"]
+        self.assertIn('<div class="table-container">', body)
+        self.assertIn("<th>Criterio</th>", body)
+        self.assertIn("<th>Opción A</th>", body)
+        self.assertIn("<td>$100 USD</td>", body)
+        self.assertIn("<td>$200 USD</td>", body)
 
     def test_math_css_styles_and_print_rules(self):
         self.assertIn(".math-block {", md_engine.COMMON_STYLES)

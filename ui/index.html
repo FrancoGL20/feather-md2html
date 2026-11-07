@@ -46,10 +46,16 @@
       </div>
 
       <div class="options-row">
+        <div class="switches-group">
         <label class="switch-label" title="Si está activo, al convertir se abre automáticamente en el navegador predeterminado">
           <input type="checkbox" id="autoOpenToggle" class="switch-input" onchange="toggleAutoOpen()">
           <span>Abrir automáticamente en navegador al convertir</span>
         </label>
+          <label class="switch-label" title="Si está activo, al convertir se cierra la ventana y la app permanece activa en la bandeja del sistema">
+            <input type="checkbox" id="closeOnConvertToggle" class="switch-input" onchange="toggleCloseOnConvert()">
+            <span>Cerrar ventana al convertir</span>
+          </label>
+        </div>
         <a href="#" class="library-link-btn" onclick="openIndexInBrowser(); return false;" title="Ver todos los documentos creados">
           📚 Ver Catálogo Completo (Índice) →
         </a>

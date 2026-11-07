@@ -181,3 +181,29 @@ def find_and_adjust_app_window(
     except Exception as e:
         log_debug(f"Aviso ajustando geometría de ventana: {e}")
     return False
+
+
+
+def close_app_window(
+    state: AppLifecycleState,
+    find_hwnds_fn: Callable[[], List[int]] = find_app_hwnds,
+) -> bool:
+    """Closes the native Chromium app window by sending WM_CLOSE (equivalent to clicking 'X')."""
+    try:
+        import ctypes
+
+        user32 = ctypes.windll.user32
+        WM_CLOSE = 0x0010
+
+        hwnds = list(state.tracked_app_hwnds) if state.tracked_app_hwnds else find_hwnds_fn()
+        closed_any = False
+        for hwnd in hwnds:
+            if user32.IsWindow(hwnd):
+                user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)
+                closed_any = True
+        if closed_any:
+            log_debug(f"close_app_window: mensaje WM_CLOSE enviado a HWNDs={hwnds}")
+        return closed_any
+    except Exception as e:
+        log_debug(f"Aviso al cerrar ventana de app: {e}")
+        return False

@@ -37,7 +37,7 @@ MarkdownToHTML_App/
 │   │   │   ├── inline_parser.py   # Slugs, badges, atajos kbd, enlaces, código inline y resaltado sintáctico
 │   │   │   ├── markdown_parser.py # Analizador léxico/sintáctico de bloques, tablas, alertas y Mermaid
 │   │   │   ├── math_protector.py  # Tokenización defensiva LaTeX y ensamblaje MathJax 3 SVG offline
-│   │   │   └── title_detector.py  # Detección jerárquica de títulos (Frontmatter, H1-H3, Setext, negrita)
+│   │   │   └── title_detector.py  # Detección jerárquica de títulos (Frontmatter, H1-H6 fuera de código, Setext, negrita)
 │   │   └── services/          # Casos de uso de aplicación
 │   │       ├── catalog_service.py    # Generación de index.html, latest.html y eliminación segura
 │   │       ├── conversion_service.py # Orquestación de compilación y actualización de biblioteca
@@ -153,7 +153,7 @@ El parser implementa un compilador de un solo paso que procesa el documento lín
    - Detecta delimitadores iniciales `---` al comienzo del documento.
    - Extrae pares clave-valor (`title`, `name`, etc.) para nombrar automáticamente el documento.
 2. **Encabezados (`H1` a `H6`):**
-   - El primer `# Encabezado 1` encontrado se adopta como título del documento si no se especificó un título custom o YAML frontmatter.
+   - El primer `# Encabezado 1` encontrado fuera de bloques de código se adopta como título del documento si no se especificó un título custom o YAML frontmatter. Si no existe H1, se evalúan H2 a H6 legítimos fuera de código. Cualquier línea o comentario `# ...` dentro de bloques cercados (``` o ~~~) es estrictamente ignorado. En caso de no existir ningún encabezado fuera de código, se recurre a la línea en negrita o primeras palabras del texto.
    - Se asignan slugs sanitizados mediante `slugify()` a cada encabezado para habilitar anclajes intra-documento (`#slug`).
 3. **Alertas / Callouts Estilo GitHub & Apple HIG (`markdown_parser.py` + `templates/icons.py`):**
    - Reconoce la sintaxis `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`.
@@ -318,6 +318,7 @@ El despacho de rutas se realiza mediante la tabla declarativa `HttpRouter` en `m
 | `/api/adjust-window` | `POST` | Ajusta y centra nativamente el tamaño de la ventana según la resolución de la pantalla | `{ screen_w?: number, screen_h?: number }` | `{ success: bool, target_w, target_h, pos_x, pos_y }` |
 | `/api/heartbeat` | `POST` | Refresca el temporizador del watchdog | Ninguno | `{ status: "alive" }` |
 | `/api/shutdown` | `POST` | Notifica cierre inminente de la ventana del navegador (preserva el servidor en segundo plano si está en modo tray) | `{ delay?: number, reason?: string, force?: bool }` | `{ status: "scheduled" \| "tray_preserved", delay?: number }` |
+| `/api/close-window` | `POST` | Cierra la ventana activa Chromium enviando el mensaje Win32 `WM_CLOSE` (preserva el System Tray y servidor en segundo plano) | Ninguno | `{ success: bool, closed: bool }` |
 | `/api/open-app` | `POST` | Restaura o relanza la ventana de la app desde el System Tray o instancia previa | Ninguno | `{ status: "opened" }` |
 | `/api/quit-app` | `POST` | Finaliza limpiamente el System Tray y el servidor HTTP por completo | Ninguno | `{ status: "quitting" }` |
 | `/api/clipboard` | `GET`/`POST` | Obtiene el texto plano/Markdown del portapapeles de Windows vía Win32 API (cero avisos de permisos) | Ninguno | `{ text: string, length: number }` |

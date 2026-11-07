@@ -61,6 +61,10 @@ class WindowManagerPort(Protocol):
         ...
 
 
+    def close_app_window(self) -> bool:
+        ...
+
+
 class ClipboardPort(Protocol):
     """Port for native system clipboard access."""
 
