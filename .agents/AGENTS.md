@@ -181,7 +181,8 @@ El parser implementa un compilador de un solo paso que procesa el documento lín
    - Badges de estado automáticos: `[PASS]`, `[FAIL]`, `[WARN]`, `[INFO]`, `[OK]`, `[ERROR]`.
 8. **Diagramas Mermaid 100% Offline e Interactivos (`markdown_parser.py` + `templates/scripts/mermaid_client.js`):**
    - Detección automática de bloques delimitados por ```mermaid.
-   - Construcción de tarjeta interactiva en tema Volcanic Amber con cabecera en mayúsculas `DIAGRAMA MERMAID`, icono SVG vectorial, botón táctil **"Ver código" / "Ocultar código"** y botón **"Copiar"** (con feedback en tiempo real `"✓ Copiado"`).
+   - Construcción de tarjeta interactiva en tema Volcanic Amber con cabecera en mayúsculas `DIAGRAMA MERMAID`, icono SVG vectorial, menú desplegable táctil **"Exportar ▾"** (SVG, PNG, JPG), botón táctil **"Ver código" / "Ocultar código"** y botón **"Copiar"** (con feedback en tiempo real `"✓ Copiado"`).
+   - **Exportación Multi-formato de Alta Resolución (SVG, PNG, JPG):** Cada diagrama permite abrir la imagen en una nueva pestaña (`window.open`) o descargarla a disco en 1 clic. El renderizado ráster implementa escala adaptativa (`4x` en diagramas grandes o complejos, `3x` estándar) con fondo adaptado al tema activo (`#111114` oscuro / `#ffffff` claro) para garantizar legibilidad perfecta y calidad Ultra-HD / 300 DPI.
    - Contenedor SVG centrado responsivo con soporte para temas claro/oscuro dinámicos.
    - Runtime embebido offline: `assets/mermaid.min.js` (Mermaid 11.x) se inyecta de forma autónoma en el documento HTML únicamente cuando existen diagramas Mermaid, garantizando documentos autocontenidos y portables sin conexiones remotas ni dependencias de red.
    - Sincronización en caliente con el botón de alternancia de tema (`toggleTheme()` re-renderiza con la paleta `dark` o `default`).
@@ -255,6 +256,11 @@ Para garantizar portabilidad y autocontención absoluta sin vulnerar la premisa 
 6. **Auto-Recuperación y Resiliencia en Doble Capa (Self-Healing Engine):**
    - **Capa de Compilador Python (`sanitize_mermaid_code` en `markdown_parser.py`):** Normaliza de forma preventiva flechas gruesas y delgadas no válidas hacia la sintaxis estándar bidireccional (`<==>` y `<-->`), asegurando que el código inyectado en los contenedores `raw-*` y `source-*` sea válido.
    - **Capa de Cliente JavaScript (`autoRepairMermaid` en `mermaid_client.js`):** Proporciona un mecanismo de reintento dinámico. Si la invocación a `mermaid.render()` falla, aplica la corrección sobre el código fuente y reintenta con un identificador `-repaired`, inyectando el SVG final de manera completamente transparente al usuario.
+7. **Motor de Exportación Multi-formato a Máxima Resolución (`exportMermaidDiagram` en `mermaid_client.js`):**
+   - **Formato SVG (Vectorial Infinito):** Clona el nodo SVG del DOM, inyecta un `<rect>` de fondo con el color del tema actual (`#111114` oscuro / `#ffffff` claro) y serializa a cadena XML creando un `Blob` de tipo `image/svg+xml;charset=utf-8`.
+   - **Formatos Ráster PNG y JPG:** Emplea un `<canvas>` en memoria con factor de escala adaptativo (`4x` para diagramas con dimensiones `>= 1000px` o área `>= 800,000 px²`, y `3x` para diagramas estándar) y un límite defensivo de 12,000 px. Dibuja el fondo sólido y renderiza el SVG a calidad Ultra-HD / 300 DPI (`canvas.toBlob(...)` con calidad 0.95 en JPG).
+   - **Apertura Directa en Nueva Pestaña:** Invoca `window.open(blobUrl, '_blank')` sin requerir que la imagen se guarde en disco con anterioridad, permitiendo inspeccionar, hacer zoom o copiar la imagen en una pestaña independiente al instante.
+   - **Descarga con 1 Clic:** Despacha una descarga local limpia con nomenclatura sanitizada (`[titulo-documento]-[id-diagrama].[formato]`).
 
 ---
 

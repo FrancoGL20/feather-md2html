@@ -27,7 +27,15 @@ from md2html.core.compiler.math_protector import (
     build_math_block_html,
 )
 from md2html.core.compiler.title_detector import detect_smart_title
-from md2html.templates.icons import ALERT_ICONS, ICON_CODE, ICON_COPY, ICON_DIAGRAM
+from md2html.templates.icons import (
+    ALERT_ICONS,
+    ICON_CHEVRON_DOWN,
+    ICON_CODE,
+    ICON_COPY,
+    ICON_DIAGRAM,
+    ICON_EXPORT,
+    ICON_EXTERNAL,
+)
 
 
 def sanitize_mermaid_code(code: str) -> str:
@@ -46,7 +54,7 @@ def sanitize_mermaid_code(code: str) -> str:
 
 
 def _build_mermaid_card_html(diag_id: str, esc_code: str) -> str:
-    """Builds the interactive HTML container for a Mermaid diagram block."""
+    """Builds the interactive HTML container for a Mermaid diagram block with export menu."""
     return (
         f'<div class="mermaid-block" id="block-{diag_id}">\n'
         f'  <div class="mermaid-header">\n'
@@ -55,6 +63,42 @@ def _build_mermaid_card_html(diag_id: str, esc_code: str) -> str:
         f"      <span>Diagrama Mermaid</span>\n"
         f"    </div>\n"
         f'    <div class="mermaid-actions">\n'
+        f'      <div class="mermaid-export-wrapper">\n'
+        f'        <button class="copy-btn export-btn" onclick="toggleMermaidExportMenu(\'{diag_id}\', event)" title="Exportar diagrama en SVG, PNG o JPG">\n'
+        f"          {ICON_EXPORT}\n"
+        f"          <span>Exportar</span>\n"
+        f"          {ICON_CHEVRON_DOWN}\n"
+        f"        </button>\n"
+        f'        <div class="mermaid-export-menu" id="export-menu-{diag_id}">\n'
+        f'          <div class="export-menu-header">Abrir en nueva pestaña</div>\n'
+        f'          <button class="export-menu-item" onclick="exportMermaidDiagram(\'{diag_id}\', \'svg\', \'tab\')">\n'
+        f"            {ICON_EXTERNAL}\n"
+        f"            <span>SVG (Vectorial infinito)</span>\n"
+        f"          </button>\n"
+        f'          <button class="export-menu-item" onclick="exportMermaidDiagram(\'{diag_id}\', \'png\', \'tab\')">\n'
+        f"            {ICON_EXTERNAL}\n"
+        f"            <span>PNG (Alta resolución)</span>\n"
+        f"          </button>\n"
+        f'          <button class="export-menu-item" onclick="exportMermaidDiagram(\'{diag_id}\', \'jpg\', \'tab\')">\n'
+        f"            {ICON_EXTERNAL}\n"
+        f"            <span>JPG (Alta resolución)</span>\n"
+        f"          </button>\n"
+        f'          <div class="export-menu-sep"></div>\n'
+        f'          <div class="export-menu-header">Descargar archivo</div>\n'
+        f'          <button class="export-menu-item" onclick="exportMermaidDiagram(\'{diag_id}\', \'svg\', \'download\')">\n'
+        f"            {ICON_EXPORT}\n"
+        f"            <span>Descargar SVG</span>\n"
+        f"          </button>\n"
+        f'          <button class="export-menu-item" onclick="exportMermaidDiagram(\'{diag_id}\', \'png\', \'download\')">\n'
+        f"            {ICON_EXPORT}\n"
+        f"            <span>Descargar PNG</span>\n"
+        f"          </button>\n"
+        f'          <button class="export-menu-item" onclick="exportMermaidDiagram(\'{diag_id}\', \'jpg\', \'download\')">\n'
+        f"            {ICON_EXPORT}\n"
+        f"            <span>Descargar JPG</span>\n"
+        f"          </button>\n"
+        f"        </div>\n"
+        f"      </div>\n"
         f'      <button class="copy-btn toggle-source-btn" onclick="toggleMermaidSource(\'{diag_id}\', this)" title="Ver u ocultar código Mermaid">\n'
         f"        {ICON_CODE}\n"
         f"        <span>Ver código</span>\n"

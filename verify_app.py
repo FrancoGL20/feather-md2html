@@ -201,6 +201,9 @@ graph TD
     with open(res_mermaid["file_path"], "r", encoding="utf-8") as f:
         mermaid_html = f.read()
     assert 'class="mermaid-block" id="block-mermaid-1"' in mermaid_html, "Falta bloque mermaid-block"
+    assert 'export-menu-mermaid-1' in mermaid_html, "Falta menú de exportación mermaid"
+    assert 'toggleMermaidExportMenu' in mermaid_html, "Falta controlador toggleMermaidExportMenu"
+    assert 'exportMermaidDiagram' in mermaid_html, "Falta controlador exportMermaidDiagram"
     assert 'toggleMermaidSource' in mermaid_html, "Falta controlador toggleMermaidSource"
     assert 'copyMermaidSource' in mermaid_html, "Falta controlador copyMermaidSource"
     assert 'renderMermaidDiagrams' in mermaid_html, "Falta inicializador renderMermaidDiagrams"

@@ -629,6 +629,15 @@ class TestMermaidDiagrams(IsolatedEnvironmentTestCase):
         self.assertIn('class="mermaid-block" id="block-mermaid-1"', body)
         self.assertIn('class="mermaid-header"', body)
         self.assertIn('<span>Diagrama Mermaid</span>', body)
+        self.assertIn('class="mermaid-export-wrapper"', body)
+        self.assertIn("toggleMermaidExportMenu('mermaid-1', event)", body)
+        self.assertIn('id="export-menu-mermaid-1"', body)
+        self.assertIn("exportMermaidDiagram('mermaid-1', 'svg', 'tab')", body)
+        self.assertIn("exportMermaidDiagram('mermaid-1', 'png', 'tab')", body)
+        self.assertIn("exportMermaidDiagram('mermaid-1', 'jpg', 'tab')", body)
+        self.assertIn("exportMermaidDiagram('mermaid-1', 'svg', 'download')", body)
+        self.assertIn("exportMermaidDiagram('mermaid-1', 'png', 'download')", body)
+        self.assertIn("exportMermaidDiagram('mermaid-1', 'jpg', 'download')", body)
         self.assertIn("toggleMermaidSource('mermaid-1', this)", body)
         self.assertIn("copyMermaidSource('mermaid-1', this)", body)
         self.assertIn('id="render-mermaid-1"', body)
@@ -687,6 +696,10 @@ sequenceDiagram
         self.assertIn("renderMermaidDiagrams", content)
         self.assertIn("toggleMermaidSource", content)
         self.assertIn("copyMermaidSource", content)
+        self.assertIn("toggleMermaidExportMenu", content)
+        self.assertIn("closeAllMermaidExportMenus", content)
+        self.assertIn("exportMermaidDiagram", content)
+        self.assertIn("triggerDownload", content)
         self.assertIn("mermaid.initialize", content)
         # Verifica sincronización con alternador de tema
         self.assertIn("if (typeof renderMermaidDiagrams === 'function')", content)
@@ -721,6 +734,11 @@ sequenceDiagram
         self.assertIn(".mermaid-header {", md_engine.COMMON_STYLES)
         self.assertIn(".mermaid-title {", md_engine.COMMON_STYLES)
         self.assertIn(".mermaid-actions {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-export-wrapper {", md_engine.COMMON_STYLES)
+        self.assertIn(".mermaid-export-menu {", md_engine.COMMON_STYLES)
+        self.assertIn(".export-menu-header {", md_engine.COMMON_STYLES)
+        self.assertIn(".export-menu-item {", md_engine.COMMON_STYLES)
+        self.assertIn(".export-menu-sep {", md_engine.COMMON_STYLES)
         self.assertIn(".mermaid-render {", md_engine.COMMON_STYLES)
         self.assertIn(".mermaid-source {", md_engine.COMMON_STYLES)
         self.assertIn(".mermaid-error {", md_engine.COMMON_STYLES)
@@ -728,6 +746,41 @@ sequenceDiagram
         # Print media query
         self.assertIn(".mermaid-actions { display: none !important; }", md_engine.COMMON_STYLES)
         self.assertIn(".mermaid-source { display: none !important; }", md_engine.COMMON_STYLES)
+
+    def test_mermaid_export_client_js_adaptive_scale_and_formats(self):
+        """Verifica que el script cliente de Mermaid implemente exportación dinámica, anti-taint de Canvas y resolución 4K."""
+        from md2html.templates.loader import get_mermaid_client_js
+
+        js = get_mermaid_client_js()
+        # Funciones de exportación, menú y sanitización anti-taint
+        self.assertIn("function toggleMermaidExportMenu(id, event)", js)
+        self.assertIn("function closeAllMermaidExportMenus()", js)
+        self.assertIn("function convertForeignObjectsToSvgText(svgRoot)", js)
+        self.assertIn("function exportMermaidDiagram(id, format, action)", js)
+        self.assertIn("function triggerDownload(url, filename)", js)
+
+        # Conversión de foreignObject a <text> nativo
+        self.assertIn("querySelectorAll('foreignObject')", js)
+        self.assertIn("document.createElementNS('http://www.w3.org/2000/svg', 'text')", js)
+        self.assertIn("parent.replaceChild(textEl, fo)", js)
+
+        # Escala adaptativa con tope Cinema 4K (3840 px) para evitar bloat de memoria
+        self.assertIn("let scale = 2;", js)
+        self.assertIn("maxDim > 3840", js)
+        self.assertIn("3840 / Math.max(width, height)", js)
+
+        # Serializador SVG y fondo sólido adaptado al tema
+        self.assertIn("XMLSerializer()", js)
+        self.assertIn("document.createElementNS('http://www.w3.org/2000/svg', 'rect')", js)
+        self.assertIn("isLight ? '#ffffff' : '#111114'", js)
+
+        # Soporte Canvas y Blob para ráster PNG / JPG con captura de errores
+        self.assertIn("canvas.toBlob", js)
+        self.assertIn("image/jpeg", js)
+        self.assertIn("image/png", js)
+        self.assertIn("image/svg+xml", js)
+        self.assertIn("window.open(url, '_blank')", js)
+        self.assertIn("window.open(imgUrl, '_blank')", js)
 
     def test_mermaid_auto_repair_reverse_arrows(self):
         """Verifica la función de auto-reparación y sanitización defensiva de sintaxis Mermaid."""
