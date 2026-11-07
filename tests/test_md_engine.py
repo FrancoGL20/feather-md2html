@@ -729,6 +729,71 @@ sequenceDiagram
         self.assertIn(".mermaid-actions { display: none !important; }", md_engine.COMMON_STYLES)
         self.assertIn(".mermaid-source { display: none !important; }", md_engine.COMMON_STYLES)
 
+    def test_mermaid_auto_repair_reverse_arrows(self):
+        """Verifica la función de auto-reparación y sanitización defensiva de sintaxis Mermaid."""
+        from md2html.core.compiler.markdown_parser import sanitize_mermaid_code
+
+        # Reverse thick arrow with label
+        self.assertEqual(
+            sanitize_mermaid_code('SwitchPoE <==|"Cable UTP Gigabit"| NIC2'),
+            'SwitchPoE <==>|"Cable UTP Gigabit"| NIC2'
+        )
+        self.assertEqual(
+            sanitize_mermaid_code('SwitchPoE <==|Cable UTP Gigabit| NIC2'),
+            'SwitchPoE <==>|Cable UTP Gigabit| NIC2'
+        )
+
+        # Reverse thin arrow with label
+        self.assertEqual(
+            sanitize_mermaid_code('A <--|"label"| B'),
+            'A <-->|"label"| B'
+        )
+        self.assertEqual(
+            sanitize_mermaid_code('A <--|label| B'),
+            'A <-->|label| B'
+        )
+
+        # Stand-alone reverse arrows
+        self.assertEqual(sanitize_mermaid_code('A <== B'), 'A <==> B')
+        self.assertEqual(sanitize_mermaid_code('A <-- B'), 'A <--> B')
+
+        # Quoted text missing closing arrow
+        self.assertEqual(
+            sanitize_mermaid_code('A <== "text" == B'),
+            'A <== "text" ==> B'
+        )
+        self.assertEqual(
+            sanitize_mermaid_code('A <-- "text" -- B'),
+            'A <-- "text" --> B'
+        )
+
+        # Existing valid syntax must remain untouched
+        self.assertEqual(
+            sanitize_mermaid_code('SwitchPoE <==>|"Cable"| NIC2'),
+            'SwitchPoE <==>|"Cable"| NIC2'
+        )
+        self.assertEqual(
+            sanitize_mermaid_code('A <== "text" ==> B'),
+            'A <== "text" ==> B'
+        )
+        self.assertEqual(sanitize_mermaid_code('A ==> B'), 'A ==> B')
+
+    def test_mermaid_rendered_html_contains_sanitized_code(self):
+        """Verifica que parse_markdown sanitice flechas no estándar en el HTML final."""
+        md = "```mermaid\nflowchart TD\n  SwitchPoE <==|\"Cable UTP Gigabit\"| NIC2\n```"
+        parsed = md_engine.parse_markdown(md)
+        self.assertTrue(parsed["has_mermaid"])
+        self.assertIn('SwitchPoE &lt;==&gt;|"Cable UTP Gigabit"| NIC2', parsed["body"])
+        self.assertNotIn("SwitchPoE &lt;==|", parsed["body"])
+
+    def test_mermaid_client_js_contains_auto_repair(self):
+        """Verifica que el script cliente de Mermaid contenga el motor de auto-reparación defensiva."""
+        from md2html.templates.loader import get_mermaid_client_js
+        js = get_mermaid_client_js()
+        self.assertIn("function autoRepairMermaid(code)", js)
+        self.assertIn("autoRepairMermaid(rawCode)", js)
+        self.assertIn("-repaired", js)
+
 
 class TestIndexMetadataCaching(unittest.TestCase):
     """Pruebas unitarias para el sistema de caché de metadatos y aceleración de índice."""

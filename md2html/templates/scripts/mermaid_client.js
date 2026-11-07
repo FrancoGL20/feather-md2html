@@ -28,6 +28,22 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function autoRepairMermaid(code) {
+  if (!code) return code;
+  let repaired = code;
+  // Repair reverse thick arrow with label: A <==|text| B -> A <==>|text| B
+  repaired = repaired.replace(/<==\|/g, '<==>|');
+  // Repair reverse thin arrow with label: A <--|text| B -> A <-->|text| B
+  repaired = repaired.replace(/<--\|/g, '<-->|');
+  // Repair reverse arrows with quoted strings: A <== "text" == B -> A <== "text" ==> B
+  repaired = repaired.replace(/(<==\s*"[^"]*"\s*)==(?=\s)/g, '$1==>');
+  repaired = repaired.replace(/(<--\s*"[^"]*"\s*)--(?=\s)/g, '$1-->');
+  // Repair stand-alone invalid reverse arrows: A <== B -> A <==> B (when not followed by quote)
+  repaired = repaired.replace(/(?<=\s)<==(?=\s+(?!"))/g, '<==>');
+  repaired = repaired.replace(/(?<=\s)<--(?=\s+(?!"))/g, '<-->');
+  return repaired;
+}
+
 async function renderMermaidDiagrams() {
   if (typeof mermaid === 'undefined') return;
   const isDark = !document.documentElement.classList.contains('light');
@@ -59,6 +75,22 @@ async function renderMermaidDiagrams() {
         res.bindFunctions(renderEl);
       }
     } catch (err) {
+      // Defensive Self-Healing: Attempt automatic repair of non-standard arrow syntax
+      const repairedCode = autoRepairMermaid(rawCode);
+      if (repairedCode !== rawCode) {
+        try {
+          const retryId = uniqueId + '-repaired';
+          const res = await mermaid.render(retryId, repairedCode);
+          renderEl.innerHTML = res.svg;
+          if (res.bindFunctions) {
+            res.bindFunctions(renderEl);
+          }
+          continue; // Successfully rendered via self-healing!
+        } catch (retryErr) {
+          console.warn('Mermaid self-healing retry failed for ' + diagId + ':', retryErr);
+        }
+      }
+
       console.error('Mermaid render error for ' + diagId + ':', err);
       renderEl.innerHTML = '<div class="mermaid-error"><strong>⚠️ Aviso de sintaxis Mermaid:</strong> ' +
         escapeHtml(err.message || 'Error en la definición del diagrama') +
