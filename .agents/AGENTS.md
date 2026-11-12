@@ -159,7 +159,7 @@ El parser implementa un compilador de un solo paso que procesa el documento lín
    - Reconoce la sintaxis `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`.
    - Genera contenedores con bordes temáticos diferenciados e inyecta iconos vectoriales SVG nativos sin peticiones de red.
 4. **Bloques de Código y Sintaxis (`inline_parser.py`):**
-   - Bloques delimitados por triple tilde invertida ```lang.
+   - Bloques delimitados por triple tilde invertida ```lang o tildes ~~~lang de cualquier longitud.
    - Cabecera con nombre del lenguaje en mayúsculas y botón táctil **"Copiar"** con feedback en tiempo real.
    - Resaltado sintáctico offline para palabras clave de `Python`, `JavaScript`, `JSON`, `PowerShell`, `Groovy`, `Gherkin` y bloques `diff` (líneas verdes `+` y rojas `-`).
 5. **Tablas Responsivas (`markdown_parser.py`):**
@@ -171,6 +171,8 @@ El parser implementa un compilador de un solo paso que procesa el documento lín
    - Algoritmo de árbol basado en pila (`ListNode`, `ItemNode`) que detecta sangría relativa (2, 3 o 4 espacios / tabulaciones) y anida semánticamente las sublistas dentro del `<li>` padre.
    - Sangría visual a la derecha (`padding-left: 1.7rem` en base y `1.5rem` adicional en cada subnivel) y marcadores jerárquicos de viñetas (`disc` -> `circle` -> `square`) y numeración (`decimal` -> `lower-alpha` -> `lower-roman`).
    - Respeto a líneas de continuación sangradas dentro de un mismo elemento de lista.
+   - **Bloques Cercados Anidados en Listas:** Soporte integral para bloques de código cercados (delimitados por ``` o ~~~), diagramas Mermaid y fórmulas MathJax embebidos dentro de un elemento de lista. La continuidad semántica y numeración de la lista se preserva sin fragmentar el bloque en múltiples `<ol>`/`<ul>` ni duplicar etiquetas `start`.
+   - **Desangrado Inteligente de Fences (`strip_fence_indent`):** Remueve de forma determinista hasta `N` espacios iniciales del bloque de código alineado con el ítem padre, preservando de manera intacta la sangría relativa del código dentro de las etiquetas `<pre><code>` (semántica CommonMark).
 7. **Formateo en Línea (Inline) y Anclajes (`inline_parser.py`):**
    - Código en línea `` `código` `` (protegido con tokens antes de parsear estilos de texto para evitar colisiones).
    - Atajos de teclado `[[kbd:Ctrl+C]]` -> `<kbd>Ctrl+C</kbd>`.
