@@ -206,6 +206,12 @@ a:hover { text-decoration: underline; }
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+li > .code-block,
+li > .mermaid-block,
+li > .math-block {
+  margin: 0.6rem 0 0.8rem 0;
+}
+
 .code-header {
   background-color: var(--code-block-header);
   padding: 0.4rem 0.9rem;

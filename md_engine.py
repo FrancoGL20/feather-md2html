@@ -41,6 +41,7 @@ from md2html.core.compiler import (
     render_item_node,
     render_list_node,
     slugify,
+    strip_fence_indent,
 )
 from md2html.core.services.catalog_service import (
     generate_index_html,
