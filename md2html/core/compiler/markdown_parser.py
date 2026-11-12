@@ -14,6 +14,7 @@ from md2html.core.compiler.ast_nodes import (
     is_list_marker,
     parse_list_items,
     render_list_node,
+    strip_fence_indent,
 )
 from md2html.core.compiler.inline_parser import (
     escape,
@@ -241,6 +242,34 @@ def parse_markdown(
     mermaid_count = 0
     has_mermaid = False
 
+    def render_code_block_helper(code_raw: str, lang: str) -> str:
+        nonlocal mermaid_count, has_mermaid
+        lang_lower = (lang or "").lower().strip()
+
+        if lang_lower == "mermaid":
+            mermaid_count += 1
+            has_mermaid = True
+            diag_id = f"mermaid-{mermaid_count}"
+            sanitized = sanitize_mermaid_code(code_raw)
+            return _build_mermaid_card_html(diag_id, escape(sanitized))
+
+        if lang_lower in ("math", "equation"):
+            math_block_id = len(math_ctx.block_items) + 1
+            math_ctx.has_math = True
+            return build_math_block_html(code_raw, math_block_id)
+
+        code_html = highlight_code_block(code_raw, lang)
+        lang_label = escape(lang.upper() if lang else "CODE")
+        return (
+            f'<div class="code-block">\n'
+            f'  <div class="code-header">\n'
+            f"    <span>{lang_label}</span>\n"
+            f'    <button class="copy-btn" onclick="copyCode(this)">{ICON_COPY}<span>Copiar</span></button>\n'
+            f"  </div>\n"
+            f"  <pre><code>{code_html}</code></pre>\n"
+            f"</div>"
+        )
+
     i = 0
     n = len(body_lines)
     while i < n:
@@ -262,7 +291,7 @@ def parse_markdown(
             continue
 
         # Setext headings not consumed as document title
-        if i + 1 < n and stripped and not stripped.startswith(("#", "```", ">", "|", "- ", "* ", "+ ", "---", "===")):
+        if i + 1 < n and stripped and not stripped.startswith(("#", "```", "~~~", ">", "|", "- ", "* ", "+ ", "---", "===")):
             next_line = body_lines[i + 1].strip()
             if re.match(r"^[=]{3,}\s*$", next_line):
                 slug = slugify(stripped)
@@ -278,44 +307,31 @@ def parse_markdown(
                 i += 2
                 continue
 
-        # Fenced code blocks (standard, Mermaid, and LaTeX math)
-        if stripped.startswith("```"):
-            lang = stripped[3:].strip()
+        # Fenced code blocks (standard, Mermaid, and LaTeX math: ``` or ~~~)
+        m_fence = re.match(r"^(\s*)(`{3,}|~{3,})(.*)$", line.expandtabs(4))
+        if m_fence:
+            fence_indent = len(m_fence.group(1))
+            fence_chars = m_fence.group(2)
+            fence_char = fence_chars[0]
+            fence_len = len(fence_chars)
+            lang = m_fence.group(3).strip()
             code_lines = []
             i += 1
-            while i < n and not body_lines[i].strip().startswith("```"):
-                code_lines.append(body_lines[i])
-                i += 1
-            if i < n:
+            while i < n:
+                line_clean = body_lines[i].expandtabs(4)
+                line_stripped = line_clean.strip()
+                m_close = re.match(r"^(`{3,}|~{3,})\s*$", line_stripped)
+                if (
+                    m_close
+                    and m_close.group(1)[0] == fence_char
+                    and len(m_close.group(1)) >= fence_len
+                ):
+                    i += 1
+                    break
+                code_lines.append(strip_fence_indent(body_lines[i], fence_indent))
                 i += 1
             code_raw = "\n".join(code_lines)
-            lang_lower = (lang or "").lower().strip()
-
-            if lang_lower == "mermaid":
-                mermaid_count += 1
-                has_mermaid = True
-                diag_id = f"mermaid-{mermaid_count}"
-                code_raw = sanitize_mermaid_code(code_raw)
-                html_blocks.append(_build_mermaid_card_html(diag_id, escape(code_raw)))
-                continue
-
-            if lang_lower in ("math", "equation"):
-                math_block_id = len(math_ctx.block_items) + 1
-                math_ctx.has_math = True
-                html_blocks.append(build_math_block_html(code_raw, math_block_id))
-                continue
-
-            code_html = highlight_code_block(code_raw, lang)
-            lang_label = escape(lang.upper() if lang else "CODE")
-            html_blocks.append(
-                f'<div class="code-block">\n'
-                f'  <div class="code-header">\n'
-                f"    <span>{lang_label}</span>\n"
-                f'    <button class="copy-btn" onclick="copyCode(this)">{ICON_COPY}<span>Copiar</span></button>\n'
-                f"  </div>\n"
-                f"  <pre><code>{code_html}</code></pre>\n"
-                f"</div>"
-            )
+            html_blocks.append(render_code_block_helper(code_raw, lang))
             continue
 
         # ATX Headings (# to ######)
@@ -430,7 +446,9 @@ def parse_markdown(
 
         # Lists
         if is_list_marker(line):
-            raw_items, next_i = parse_list_items(body_lines, i)
+            raw_items, next_i = parse_list_items(
+                body_lines, i, code_block_handler=render_code_block_helper
+            )
             if next_i <= i:
                 next_i = i + 1
             roots = build_tree(raw_items)
@@ -445,7 +463,7 @@ def parse_markdown(
             i < n
             and body_lines[i].strip()
             and not re.match(r"^\s*#{1,6}\s+", body_lines[i])
-            and not body_lines[i].strip().startswith("```")
+            and not re.match(r"^\s*(`{3,}|~{3,})", body_lines[i])
             and not body_lines[i].strip().startswith(">")
             and not body_lines[i].strip().startswith(_TOKEN_BLOCK_PREFIX)
             and not (

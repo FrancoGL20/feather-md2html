@@ -423,6 +423,48 @@ class TestCodeBlocksAndSyntaxHighlighting(unittest.TestCase):
         self.assertIn('<span class="tok-kw">foreach</span>', res)
         self.assertIn('<span class="tok-kw">return</span>', res)
 
+    def test_strip_fence_indent_semantics(self):
+        """Verifica que strip_fence_indent elimine hasta N espacios respetando sangría relativa."""
+        # Columna 0: sin cambios
+        self.assertEqual(md_engine.strip_fence_indent("    codigo", 0), "    codigo")
+        # Exactamente 5 espacios
+        self.assertEqual(
+            md_engine.strip_fence_indent("     cd C:\\Users\\Rebus", 5),
+            "cd C:\\Users\\Rebus",
+        )
+        # 7 espacios con fence a 5 -> quedan 2 espacios relativos
+        self.assertEqual(md_engine.strip_fence_indent("       nested_code", 5), "  nested_code")
+        # Menos espacios que el fence (2 espacios con fence a 5) -> queda sin espacios
+        self.assertEqual(md_engine.strip_fence_indent("  short", 5), "short")
+        # Línea vacía
+        self.assertEqual(md_engine.strip_fence_indent("", 5), "")
+        self.assertEqual(md_engine.strip_fence_indent("   ", 5), "")
+        # Tabs expandidos
+        self.assertEqual(md_engine.strip_fence_indent("\tcd C:\\test", 4), "cd C:\\test")
+
+    def test_tilde_fenced_code_blocks(self):
+        """Verifica soporte completo de bloques de código delimitados por tildes ~~~."""
+        md = """~~~bash
+echo "Hello from tilde block"
+~~~"""
+        html = md_engine.compile_markdown_to_body(md)
+        self.assertIn('<div class="code-block">', html)
+        self.assertIn('<span>BASH</span>', html)
+        self.assertIn('echo "Hello from tilde block"', html)
+
+    def test_indented_code_block_strips_fence_spaces_in_html(self):
+        """Verifica que bloques de código indentados no tengan espacios residuales en <pre><code>."""
+        md = """     ```powershell
+     cd C:\\Users\\FranciscoGutierrezLo\\Rebus\\front-end
+       Get-ChildItem -Recurse
+     ```"""
+        html = md_engine.compile_markdown_to_body(md)
+        self.assertIn('<div class="code-block">', html)
+        self.assertIn(
+            "<pre><code>cd C:\\Users\\FranciscoGutierrezLo\\Rebus\\front-end\n  Get-ChildItem -Recurse</code></pre>",
+            html,
+        )
+
 
 class TestCalloutAlerts(unittest.TestCase):
     """Test GitHub & Apple HIG callout containers with SVG icons."""
@@ -531,6 +573,70 @@ class TestListHierarchy(unittest.TestCase):
         self.assertIn('Tarea Completada', html)
         self.assertIn('Tarea Pendiente', html)
         self.assertIn('Subtarea Completada', html)
+
+    def test_indented_code_blocks_inside_ordered_list_preserve_single_list(self):
+        """Verifica que bloques de código indentados en una lista no la rompan en fragmentos <ol>."""
+        md = """* **Pasos:**
+  1. Abre PowerShell en la carpeta de `front-end`:
+     ```powershell
+     cd C:\\Users\\FranciscoGutierrezLo\\Rebus\\front-end
+     ```
+  2. Ejecuta los siguientes tres comandos de verificación:
+     ```powershell
+     Test-Path ".\\support_centre"
+     Test-Path ".\\dist\\rebus\\helpcenter"
+     git submodule status
+     ```
+* **Qué señalar / resaltar en la captura:**
+  * 🔴 **Caja 1:** El valor `False` devuelto.
+"""
+        html = md_engine.compile_markdown_to_body(md)
+
+        # Debe haber un solo <ol> y no fragmentado con start="2"
+        self.assertEqual(html.count("<ol>"), 1)
+        self.assertEqual(html.count('start="2"'), 0)
+
+        # Los bloques de código deben estar anidados y limpios de espacios iniciales
+        self.assertIn("<li>Abre PowerShell en la carpeta de <code>front-end</code>:", html)
+        self.assertIn("<pre><code>cd C:\\Users\\FranciscoGutierrezLo\\Rebus\\front-end</code></pre>", html)
+        self.assertIn("<li>Ejecuta los siguientes tres comandos de verificación:", html)
+        self.assertIn(
+            "<pre><code>Test-Path \".\\support_centre\"\nTest-Path \".\\dist\\rebus\\helpcenter\"\ngit submodule status</code></pre>",
+            html,
+        )
+
+    def test_tilde_code_block_inside_list_item(self):
+        """Verifica que bloques de código con tildes ~~~ funcionen anidados dentro de una lista."""
+        md = """* Configuración:
+  ~~~json
+  {"status": "active", "port": 8080}
+  ~~~
+* Siguiente punto
+"""
+        html = md_engine.compile_markdown_to_body(md)
+        self.assertIn('<span>JSON</span>', html)
+        self.assertIn('{"status": "active", "port": 8080}', html)
+        self.assertIn("<li>Siguiente punto</li>", html)
+
+    def test_mermaid_and_math_inside_list_item(self):
+        """Verifica que diagramas Mermaid y fórmulas MathJax funcionen anidados dentro de una lista."""
+        md = """1. Diagrama de arquitectura:
+   ```mermaid
+   graph TD
+     A --> B
+   ```
+2. Ecuación fundamental:
+   ```math
+   E = mc^2
+   ```
+"""
+        parsed = md_engine.parse_markdown(md)
+        body = parsed["body"]
+        self.assertTrue(parsed["has_mermaid"])
+        self.assertTrue(parsed["has_math"])
+        self.assertIn('class="mermaid-block"', body)
+        self.assertIn('class="math-block"', body)
+        self.assertEqual(body.count("<ol>"), 1)
 
 
 class TestCatalogAndNavigation(IsolatedEnvironmentTestCase):

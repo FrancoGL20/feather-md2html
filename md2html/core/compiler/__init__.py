@@ -10,6 +10,7 @@ from md2html.core.compiler.ast_nodes import (
     parse_list_items,
     render_item_node,
     render_list_node,
+    strip_fence_indent,
 )
 from md2html.core.compiler.inline_parser import (
     clean_markdown_inline,
@@ -70,4 +71,5 @@ __all__ = [
     "render_item_node",
     "render_list_node",
     "slugify",
+    "strip_fence_indent",
 ]
