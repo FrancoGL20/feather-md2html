@@ -5,15 +5,26 @@ Esta regla es de cumplimiento **obligatorio** para todo agente al finalizar una 
 ---
 
 > [!IMPORTANT]
-> **ENTREGA OBLIGATORIA DEL FLUJO COMPLETO DE GIT (RAMA, COMMITS, MERGE, PUSH Y CIERRE):**
-> Al finalizar cualquier implementación, corrección o ticket, el agente **DEBE SIEMPRE Y SIN EXCEPCIÓN** entregar al final de su respuesta la secuencia completa de comandos Git lista para copiar y ejecutar en un solo bloque. Esta secuencia debe incluir:
-> 1. Creación o posicionamiento en la rama de trabajo (`git checkout -b bugfix/<nombre>` o `feature/<nombre>`).
+> **ENTREGA INMEDIATA Y OBLIGATORIA DEL FLUJO COMPLETO DE GIT EN EL MENSAJE DE IMPLEMENTACIÓN:**
+> Siempre que el agente termine de implementar, corregir o refactorizar cualquier funcionalidad (Fases 3 y 4 concluidas con tests en verde), **DEBE INCLUIR OBLIGATORIAMENTE Y SIN EXCEPCIÓN** al final de esa misma respuesta la secuencia completa de comandos Git lista para copiar y ejecutar en un solo bloque, junto con el Resumen Estandarizado de Cierre de Ticket.
+>
+> **Principio de Revisión Previa por el Usuario:**
+> El agente debe entregar esta secuencia teniendo plena consciencia del flujo humano:
+> 1. El usuario **primero probará y revisará la funcionalidad** en su entorno real.
+> 2. **Si todo funciona y está correcto**, el usuario procederá a copiar y ejecutar el bloque completo de comandos Git para cerrar el ciclo formalmente (commits, merge `--no-ff`, push a `origin develop` y poda de rama).
+> 3. **Si surgen fallos, detalles visuales o ajustes requeridos**, el usuario **NO** ejecutará los comandos y le reportará los problemas al agente para iterar y corregir en la misma rama.
+>
+> **Antipatrón Estrictamente Prohibido (No dejar tickets huérfanos sin comandos):**
+> Queda terminantemente prohibido que el agente termine una implementación y se limite a decir *"ya lo implementé, pruébalo"* omitiendo los comandos de cierre. El usuario nunca debe verse obligado a abrir un turno posterior para preguntar *«¿en qué paso estamos? ¿qué hay sin commit? dame su commit»*. Toda respuesta que concluya una implementación debe llevar sus comandos de cierre listos.
+>
+> La secuencia de comandos debe incluir:
+> 1. Creación o posicionamiento en la rama de trabajo (`git checkout -b bugfix/<nombre>` o `feature/<nombre>` o `docs/<nombre>`).
 > 2. `git add` y `git commit -m "..."` semánticos y atómicos.
 > 3. Retorno exclusivo a develop (`git checkout develop`). Solo releases o hotfixes oficiales tocan `master`.
 > 4. Merge sin fast-forward: `git merge --no-ff <rama> -m "merge: ..."`
 > 5. Publicación en el repositorio remoto: `git push origin develop`.
 > 6. Cierre y eliminación limpia de la rama local: `git branch -d <rama>`.
-> De esta forma, el usuario puede probar la solución y cerrar/enviar el ciclo completo a GitHub en ese mismo momento sin pasos faltantes.
+> 7. Comprobación final de árbol limpio (`git status` y `git log -n 5 --graph --oneline`).
 
 ## 1. Política Estricta de Archivos Temporales (`tmp/`)
 
@@ -59,20 +70,24 @@ graph TD
 4. **Paso 4: Revisión de Diff y Commits Semánticos:**
    - Inspeccionar `git diff` y `git status`.
    - Estructurar commits con formato Conventional Commits (`feat:`, `test:`, `docs:`, `fix:`, `chore:`).
-5. **Paso 5: Entrega Final Obligatoria (Resumen Estandarizado de Cierre de Ticket):**
-   Como último paso de respuesta al usuario, el agente **DEBE SIEMPRE** proporcionar un resumen estandarizado con la siguiente estructura fija:
+5. **Paso 5: Entrega Inmediata Obligatoria (Resumen Estandarizado de Cierre de Ticket y Comandos Git):**
+   En la **misma respuesta** donde se entrega la solución implementada o corregida, el agente **DEBE SIEMPRE** proporcionar un resumen estandarizado y el bloque completo de comandos Git listo para ejecutar, con la siguiente estructura fija:
    - **📋 Resumen de Cambios:** Explicación técnica clara y concisa de las modificaciones realizadas.
    - **✨ Cosas Nuevas Incorporadas:** Nuevos módulos, dependencias offline, sintaxis soportadas o características añadidas.
    - **🧪 Pruebas Existentes Ejecutadas:** Total de pruebas previas verificadas con 100% de éxito (0 regresiones).
    - **🔬 Pruebas Nuevas Añadidas:** Detalle exhaustivo de las nuevas pruebas unitarias/integración creadas para el ticket.
    - **📂 Archivos Modificados y Creados:** Lista de archivos con etiquetas `[NEW]`, `[MODIFY]`, `[DELETE]`.
-   - **💻 Comandos Estandarizados de Git:** Bloque de comandos listo para copiar/ejecutar con:
-     1. Creación/cambio a rama de feature si aplica (`git checkout -b feature/<nombre>`).
-     2. `git add` y `git commit` semánticos atómicos (`feat:`, `test:`, `docs:`).
-       3. Retorno exclusivo a la rama de integración (`git checkout develop`).
-      4. Fusión formal preservando la historia (`git merge --no-ff <tipo>/<nombre> -m "merge: ..."`).
-       5. Publicación remota (`git push origin develop`).
-      6. Limpieza final de la rama (`git branch -d <tipo>/<nombre>`).
+   - **💻 Comandos Estandarizados de Git:** Bloque de comandos listo para copiar/ejecutar en un solo clic con:
+     1. Creación/cambio a rama de feature/bugfix/docs (`git checkout -b <tipo>/<nombre>`).
+     2. `git add` y `git commit` semánticos atómicos (`feat:`, `test:`, `docs:`, etc.).
+     3. Retorno exclusivo a la rama de integración (`git checkout develop`).
+     4. Fusión formal preservando la historia (`git merge --no-ff <tipo>/<nombre> -m "merge: ..."`).
+     5. Publicación remota (`git push origin develop`).
+     6. Limpieza final de la rama local (`git branch -d <tipo>/<nombre>`).
+     7. Verificación de árbol y status (`git status` y `git log -n 5 --graph --oneline`).
+   
+   > [!NOTE]
+   > **Flujo de Ejecución del Usuario:** El agente entrega este bloque sabiendo que el usuario primero probará la funcionalidad. Si la prueba es satisfactoria, el usuario copiará y ejecutará el bloque en su consola para cerrar el ticket. Si detecta errores o ajustes pendientes, el usuario no ejecutará el bloque y le solicitará las correcciones al agente. Queda prohibido esperar a que el usuario pida los comandos para entregarlos.
 6. **Paso 6: Retrospectiva y Propuesta de Auto-mejora Continua:**
    - **Caso 1: No se identificaron mejoras al contexto:**
      Mencionarlo explícitamente en el resumen final: `🎯 Retrospectiva de Auto-mejora: No se identificaron mejoras para agregar al contexto en este ticket.`

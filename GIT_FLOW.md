@@ -184,12 +184,15 @@ sequenceDiagram
   git branch -d feature/<nombre-rama>
   ```
 
-### Fase 7: Cierre y Demostración Ejecutiva (Report)
+### Fase 7: Cierre, Demostración Ejecutiva y Comandos de Cierre (Report & Commands)
+- **Entrega Inmediata Obligatoria en la Misma Respuesta:** Tan pronto concluyan la implementación y los tests (100% verde), el agente debe entregar el reporte ejecutivo y el bloque completo de comandos Git listo para copiar y ejecutar (rama, commits semánticos, merge `--no-ff` a `develop`, push y prune).
+- **Consciencia de Revisión Humana:** El agente proporciona estos comandos sabiendo que el usuario primero probará y revisará la solución. Si todo está correcto, el usuario ejecutará el bloque; si hay errores o ajustes requeridos, no los ejecutará y solicitará correcciones al agente. Queda prohibido obligar al usuario a pedir los commits en un turno posterior.
 - Entregar al usuario un informe conciso que incluya:
   - Qué se cambió y por qué.
   - Enlaces clicables a los archivos modificados ([archivo](file:///ruta)).
   - Resultado de las pruebas automatizadas (número de tests pasados).
   - Guía rápida para verificar el cambio en la aplicación real.
+  - Bloque completo de comandos Git para cerrar el ticket.
 
 ---
 
