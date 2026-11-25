@@ -96,6 +96,20 @@ class TestCleanMarkdownInline(unittest.TestCase):
         self.assertEqual(md_engine.clean_markdown_inline("### --- Título"), "Título")
         self.assertEqual(md_engine.clean_markdown_inline("- * Elemento"), "Elemento")
 
+    def test_preserves_intraword_underscores_and_tags_inside_inline_code(self):
+        self.assertEqual(
+            md_engine.clean_markdown_inline("Auditoría de scenario_34.md y log_01.txt"),
+            "Auditoría de scenario_34.md y log_01.txt",
+        )
+        self.assertEqual(
+            md_engine.clean_markdown_inline("Paso 3: Abrir formulario ([L512](file:///C:/repo/Coaching.feature#L512))"),
+            "Paso 3: Abrir formulario (L512)",
+        )
+        self.assertEqual(
+            md_engine.clean_markdown_inline("Componente `<app-coaching-observation-form>`"),
+            "Componente <app-coaching-observation-form>",
+        )
+
 
 class TestSmartTitleDetection(unittest.TestCase):
     """Test heuristic and hierarchical title detection."""
@@ -392,6 +406,34 @@ class TestInlineFormatting(unittest.TestCase):
         res = md_engine.inline_formatting(text)
         self.assertIn("<kbd>Ctrl+Shift+P</kbd>", res)
 
+    def test_intraword_underscores_not_converted_to_italics(self):
+        text = (
+            "Analyzed scenario_34.md:L1-250\n"
+            "Ran listar secciones en scenario_34.md\n"
+            "Ruta C:\\Users\\demo\\_ error.md y C:\\_build\\_cache"
+        )
+        res = md_engine.inline_formatting(text)
+        self.assertNotIn("<em>", res)
+        self.assertNotIn("</em>", res)
+        self.assertIn("scenario_34.md:L1-250", res)
+        self.assertIn("scenario_34.md", res)
+        self.assertIn(r"C:\_build\_cache", res)
+
+    def test_underscore_emphasis_still_works_on_boundaries_and_underscored_words(self):
+        self.assertEqual(md_engine.inline_formatting("_hello_world_"), "<em>hello_world</em>")
+        self.assertEqual(md_engine.inline_formatting("(_cursiva_)"), "(<em>cursiva</em>)")
+        self.assertEqual(md_engine.inline_formatting("__negrita_interna__"), "<strong>negrita_interna</strong>")
+        self.assertEqual(md_engine.inline_formatting("2 * 3 * 4"), "2 * 3 * 4")
+        self.assertEqual(md_engine.inline_formatting("***ambos***"), "<strong><em>ambos</em></strong>")
+
+    def test_urls_with_underscores_in_links_and_images_are_not_mangled(self):
+        res = md_engine.inline_formatting("[_texto_ en link](https://example.com/_path_one_/_path_two_)")
+        self.assertIn('href="https://example.com/_path_one_/_path_two_"', res)
+        self.assertIn("><em>texto</em> en link</a>", res)
+        img_res = md_engine.inline_formatting("![Alt](assets/my_diagram_v2.png)")
+        self.assertIn('src="assets/my_diagram_v2.png"', img_res)
+        self.assertNotIn("<em>", img_res)
+
 
 class TestCodeBlocksAndSyntaxHighlighting(unittest.TestCase):
     """Test syntax highlighting and code block containers."""
@@ -658,6 +700,32 @@ Texto normal."""
         html = md_engine.compile_markdown_to_body(md)
         self.assertIn('<blockquote><p>Cita sangrada con espacios</p></blockquote>', html)
         self.assertIn('#hashtag sin espacio', html)
+
+    def test_table_escaped_pipes_and_pipes_inside_inline_code_do_not_split_cells(self):
+        """Regression test for Bug 1: `|` and `\\|` inside table inline code must not break columns."""
+        md = (
+            "| Revisión | Resultado | Detalle |\n"
+            "| --- | --- | --- |\n"
+            "| **Step Mapper** (`map_feature_steps.py`) | ✅ En verde | `398 pasos \\| 398 match \\| 0 sin match \\| 0 ambiguos` |\n"
+            "| **Pipe literal en código** | ✅ Ok | `a | b` y ``x `|` y`` |\n"
+            "| **Pipe escapado en texto** | ✅ Ok | Opción A \\| Opción B |\n"
+        )
+        body = md_engine.compile_markdown_to_body(md)
+        tds = re.findall(r"<td[^>]*>(.*?)</td>", body)
+        self.assertEqual(len(tds), 9, f"Se esperaban 9 celdas (3x3), se obtuvieron {len(tds)}: {tds}")
+        self.assertIn("<code>398 pasos | 398 match | 0 sin match | 0 ambiguos</code>", tds[2])
+        self.assertIn("<code>a | b</code>", tds[5])
+        self.assertIn("<code>x `|` y</code>", tds[5])
+        self.assertIn("Opción A | Opción B", tds[8])
+
+    def test_fenced_code_block_preserves_escaped_pipes_literally(self):
+        """Fenced code blocks must keep `\\|` verbatim without unescaping."""
+        md = "```bash\ngrep -E 'foo\\|bar' archivo.txt\n```"
+        body = md_engine.compile_markdown_to_body(md)
+        m = re.search(r"<pre><code>([\s\S]*?)</code></pre>", body)
+        self.assertIsNotNone(m)
+        plain = re.sub(r"<[^>]+>", "", m.group(1))
+        self.assertEqual(plain, "grep -E 'foo\\|bar' archivo.txt")
 
 
 
@@ -1485,6 +1553,75 @@ class TestCodeBlockWrapFeature(unittest.TestCase):
             self.assertIn('\n\n\t\treturn\n', plain_code)
             self.assertIn("--indent-safe:", html_content)
             self.assertIn("overflow-wrap: anywhere;", html_content)
+
+
+class TestBugfixRegressions202611(unittest.TestCase):
+    """Pruebas de regresión para saltos de línea en párrafos, guiones bajos en nombres de archivo y enlaces en TOC."""
+
+    def test_paragraph_single_newlines_preserved_and_filenames_not_italicized(self):
+        """Regression test for Bug 2 (`_ error.md`): preserve line breaks and keep `scenario_34.md` intact."""
+        md = (
+            "Analyzed SKILL.md:L1-98\n"
+            "Analyzed AGENTS.md:L1-158\n"
+            "Analyzed scenario_34.md:L1-250\n"
+            "Ran listar secciones en scenario_34.md\n"
+            "Ran listar pasos en scenario_34.md\n"
+            "Analyzed scenario_34.md:L288-1087\n\n"
+            "Los escenarios **34 y 35** están consolidados en [Coaching.feature](file:///C:/repo/Coaching.feature#L508-L541)."
+        )
+        parsed = md_engine.parse_markdown(md)
+        body = parsed["body"]
+
+        self.assertNotIn("<em>", body)
+        self.assertNotIn("</em>", body)
+        self.assertIn(
+            "<p>Analyzed SKILL.md:L1-98<br>"
+            "Analyzed AGENTS.md:L1-158<br>"
+            "Analyzed scenario_34.md:L1-250<br>"
+            "Ran listar secciones en scenario_34.md<br>"
+            "Ran listar pasos en scenario_34.md<br>"
+            "Analyzed scenario_34.md:L288-1087</p>",
+            body,
+        )
+        self.assertIn("<p>Los escenarios <strong>34 y 35</strong> están consolidados en Coaching.feature.</p>", body)
+
+    def test_toc_strips_markdown_links_and_generates_clean_heading_slugs(self):
+        """Regression test for Bug 3 (`índice con links.md`): TOC entries and heading IDs must strip link targets."""
+        md = (
+            "## Precondiciones de sesión y navegación (Pasos 1–2)\n\n"
+            "## Desglose técnico paso a paso\n\n"
+            "### Paso 3: Abrir el formulario de observación ([L512](file:///C:/Users/FranciscoGutierrezLo/Rebus/qa/Include/features/Labor/LaborHub/Coaching.feature#L512))\n\n"
+            "Texto de paso 3.\n\n"
+            "### Paso 4: Revisar [Guía Externa](https://example.com/docs) y `<app-form>`\n\n"
+            "Texto de paso 4.\n"
+        )
+        parsed = md_engine.parse_markdown(md)
+        toc = parsed["toc"]
+        body = parsed["body"]
+
+        # TOC must show clean visible link text without raw Markdown syntax or file:/// URLs
+        self.assertIn(
+            '<a href="#paso-3-abrir-el-formulario-de-observacion-l512">Paso 3: Abrir el formulario de observación (L512)</a>',
+            toc,
+        )
+        self.assertIn(
+            '<a href="#paso-4-revisar-guia-externa-y-app-form">Paso 4: Revisar Guía Externa y &lt;app-form&gt;</a>',
+            toc,
+        )
+        self.assertNotIn("file:///", toc)
+        self.assertNotIn("[L512]", toc)
+        self.assertNotIn("https://example.com", toc)
+
+        # Heading anchors in body must match clean TOC slugs and not include file paths
+        self.assertIn(
+            '<h3 id="paso-3-abrir-el-formulario-de-observacion-l512">Paso 3: Abrir el formulario de observación (L512)</h3>',
+            body,
+        )
+        self.assertIn(
+            '<h3 id="paso-4-revisar-guia-externa-y-app-form">Paso 4: Revisar <a href="https://example.com/docs" target="_blank" rel="noopener noreferrer">Guía Externa</a> y <code>&lt;app-form&gt;</code></h3>',
+            body,
+        )
+        self.assertNotIn("filecusers", body)
 
 
 if __name__ == "__main__":
