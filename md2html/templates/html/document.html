@@ -75,9 +75,42 @@
     }}
     initTheme();
 
+    function initCodeBlocks() {{
+      document.querySelectorAll('.code-block pre code').forEach(code => {{
+        if (!code.querySelector('.code-line')) {{
+          const lines = code.innerHTML.split('\n');
+          code.innerHTML = lines.map(line =>
+            line === ''
+              ? '<span class="code-line"></span>'
+              : `<span class="code-line"><span class="code-text">${{line}}</span></span>`
+          ).join('');
+        }}
+      }});
+    }}
+    initCodeBlocks();
+
+    function toggleCodeWrap(btn) {{
+      const block = btn.closest('.code-block');
+      const isNoWrap = block.classList.toggle('no-wrap');
+      if (isNoWrap) {{
+        btn.classList.remove('active');
+        btn.title = 'Activar ajuste de línea';
+      }} else {{
+        btn.classList.add('active');
+        btn.title = 'Desactivar ajuste de línea';
+      }}
+    }}
+
     function copyCode(btn) {{
-      const code = btn.closest('.code-block').querySelector('pre code').innerText;
-      navigator.clipboard.writeText(code).then(() => {{
+      const codeBlock = btn.closest('.code-block');
+      const lines = codeBlock.querySelectorAll('.code-line');
+      let text = '';
+      if (lines.length > 0) {{
+        text = Array.from(lines).map(l => l.textContent).join('\n');
+      }} else {{
+        text = codeBlock.querySelector('pre code').textContent;
+      }}
+      navigator.clipboard.writeText(text).then(() => {{
         const orig = btn.innerHTML;
         btn.classList.add('copied');
         btn.innerHTML = '✓ Copiado';

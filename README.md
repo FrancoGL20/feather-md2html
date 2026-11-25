@@ -4,7 +4,7 @@
 [![Python: 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)](https://python.org)
 [![Zero Bloatware](https://img.shields.io/badge/Dependencies-Zero%20(Stdlib%20Only)-success)](#arquitectura-tecnica-y-principios-de-diseno)
 [![Architecture: Hexagonal](https://img.shields.io/badge/Architecture-Hexagonal%20(Ports%20%26%20Adapters)-informational)](#estructura-del-proyecto)
-[![Tests: 140 Passing](https://img.shields.io/badge/Tests-140%2F140%20Passing-brightgreen)](#pruebas-automatizadas-y-calidad-de-codigo)
+[![Tests: 180 Passing](https://img.shields.io/badge/Tests-180%2F180%20Passing-brightgreen)](#pruebas-automatizadas-y-calidad-de-codigo)
 [![System Tray: Native Win32](https://img.shields.io/badge/System%20Tray-Native%20Win32-purple)](#integracion-en-el-system-tray-y-guardian-de-instancia-unica)
 
 Aplicacion de escritorio nativa para Windows disenada para la transformacion ultra-rapida (<20 ms) de documentos Markdown a paginas HTML autonomas, responsivas y completamente portables. 
@@ -69,6 +69,7 @@ La mayoria de herramientas contemporaneas para previsualizar y convertir Markdow
 - **Puntero al Documento Mas Reciente (`latest.html`):** Redireccion automatica y enlace permanente para abrir de inmediato la ultima conversion generada.
 - **Navegacion Cruzada Superior:** Todos los documentos generados integran una barra flotante para saltar al indice de documentos, al documento mas reciente o alternar entre tema oscuro y claro.
 - **Resaltado de Sintaxis sin Dependencias:** Resaltado integrado para Python, JavaScript, JSON, PowerShell, Groovy, Gherkin y bloques `diff` (adiciones en verde y eliminaciones en rojo).
+- **Bloques de Codigo con Ajuste de Linea Inteligente:** Ajuste de linea (*wrap*) activo por defecto con alternancia instantanea a scroll horizontal mediante el boton **Ajuste**, sangria francesa con marcador vectorial de continuacion (`↳`) en capas CSS y copiado de codigo 100% limpio.
 - **Tipografia y Tablas Responsivas:** Tablas con zebra striping y desplazamiento horizontal automatico, listas jerarquicas anidadas con sangria progresiva y marcadores jerarquicos (`disc` -> `circle` -> `square`).
 - **Sistema de Diseno Volcanic Amber & Deep Obsidian:** Superficies de basalto mate (`#070708`, `#111114`, `#17181c`), acentos en ambar volcanico (`#f97316`), tipografia anti-fatiga y curvas de resorte naturales.
 
@@ -303,15 +304,15 @@ MarkdownToHTML_App/
 │   ├── styles.css             # Tokens y estilos CSS3
 │   └── app.js                 # Logica cliente, atajos y Web Worker de latidos
 │
-├── tests/                     # Suite modular de pruebas con unittest nativo (140 tests)
+├── tests/                     # Suite modular de pruebas con unittest nativo (180 tests)
 │   ├── __init__.py
 │   ├── test_helpers.py
-│   ├── test_md_engine.py      # 68 tests: AST, llamadas, tablas, kbd, listas, mermaid, latex, cache
-│   ├── test_app_api.py        # 27 tests: Endpoints REST, router, modelos, UI modular, tray, portapapeles
-│   ├── test_tray_manager.py   # 6 tests: Estructuras Win32, ciclo de vida del hilo, menus y globo
-│   ├── test_window_geometry.py# 7 tests: Dimensionamiento responsivo de ventana
+│   ├── test_md_engine.py      # 98 tests: AST, llamadas, tablas, kbd, listas, code wrap, mermaid, latex, cache
+│   ├── test_app_api.py        # 43 tests: Endpoints REST, router, modelos, UI modular, tray, portapapeles
+│   ├── test_tray_manager.py   # 7 tests: Estructuras Win32, ciclo de vida del hilo, menus y globo
+│   ├── test_window_geometry.py# 9 tests: Dimensionamiento responsivo de ventana
 │   ├── test_config_and_history.py # 9 tests: Persistencia, limites y purga de fantasmas
-│   ├── test_installer_and_distribution.py # 15 tests: Integridad de instalador y accesos directos
+│   ├── test_installer_and_distribution.py # 9 tests: Integridad de instalador y accesos directos
 │   └── test_security.py       # 5 tests: Defensa contra Path Traversal, proteccion y XSS
 │
 ├── assets/
@@ -328,7 +329,7 @@ MarkdownToHTML_App/
 ├── install_shortcuts.ps1      # Generador y eliminador de accesos directos de Windows
 ├── launch.vbs                 # Lanzador silencioso en VBScript (sin consola negra)
 ├── run.bat                    # Lanzador rapido por lotes
-├── run_tests.py               # Ejecutor maestro de la suite integral de pruebas (140 tests)
+├── run_tests.py               # Ejecutor maestro de la suite integral de pruebas (180 tests)
 ├── verify_app.py              # Suite rapida de verificacion de humo (10 checks)
 ├── README.md                  # Manual tecnico y documentacion del proyecto
 └── GIT_FLOW.md                # Estandar formal de ramas Git Flow y ciclo de ingenieria
@@ -338,10 +339,10 @@ MarkdownToHTML_App/
 
 ## Pruebas Automatizadas y Calidad de Codigo
 
-El proyecto cuenta con una suite integral de **140 pruebas automatizadas** que validan la funcionalidad del compilador, la arquitectura hexagonal, la API REST, la seguridad, la persistencia, la bandeja del sistema, la geometria de pantalla y la distribucion del instalador:
+El proyecto cuenta con una suite integral de **180 pruebas automatizadas** que validan la funcionalidad del compilador, la arquitectura hexagonal, la API REST, la seguridad, la persistencia, la bandeja del sistema, la geometria de pantalla y la distribucion del instalador:
 
 ```powershell
-# Ejecutar suite integral completa (140 tests con metricas detalladas):
+# Ejecutar suite integral completa (180 tests con metricas detalladas):
 python run_tests.py
 
 # O ejecutar verificacion rapida de humo (10 checks):

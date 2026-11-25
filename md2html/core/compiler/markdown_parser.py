@@ -36,6 +36,7 @@ from md2html.templates.icons import (
     ICON_DIAGRAM,
     ICON_EXPORT,
     ICON_EXTERNAL,
+    ICON_WRAP,
 )
 
 
@@ -264,7 +265,13 @@ def parse_markdown(
             f'<div class="code-block">\n'
             f'  <div class="code-header">\n'
             f"    <span>{lang_label}</span>\n"
-            f'    <button class="copy-btn" onclick="copyCode(this)">{ICON_COPY}<span>Copiar</span></button>\n'
+            f'    <div class="code-actions">\n'
+            f'      <button class="copy-btn wrap-btn active" onclick="toggleCodeWrap(this)" title="Desactivar ajuste de línea">\n'
+            f"        {ICON_WRAP}\n"
+            f"        <span>Ajuste</span>\n"
+            f"      </button>\n"
+            f'      <button class="copy-btn" onclick="copyCode(this)">{ICON_COPY}<span>Copiar</span></button>\n'
+            f"    </div>\n"
             f"  </div>\n"
             f"  <pre><code>{code_html}</code></pre>\n"
             f"</div>"

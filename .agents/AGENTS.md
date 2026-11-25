@@ -71,15 +71,15 @@ MarkdownToHTML_App/
 │   ├── styles.css             # Sistema de diseño CSS3 y tokens Volcanic Amber
 │   └── app.js                 # Lógica reactiva cliente, Web Worker de latidos y comunicación API
 │
-├── tests/                     # Suite exhaustiva modular (140 tests con unittest nativo, zero-bloatware)
+├── tests/                     # Suite exhaustiva modular (180 tests con unittest nativo, zero-bloatware)
 │   ├── __init__.py            # Inicializador de paquete de pruebas
 │   ├── test_helpers.py        # Clases base aisladas en carpetas temporales y mocks
-│   ├── test_md_engine.py      # 68 tests: AST, llamadas, tablas, kbd, listas anidadas, slugify, mermaid, latex math, caché
-│   ├── test_app_api.py        # 27 tests: Endpoints REST GET/POST, router, modelos, assets, UI modular, tray y portapapeles
-│   ├── test_tray_manager.py   # 6 tests: Estructuras Win32, ciclo de vida del hilo, menús, callbacks y globo
-│   ├── test_window_geometry.py# 7 tests: Dimensiones responsivas de pantalla escritorio vs laptop
+│   ├── test_md_engine.py      # 98 tests: AST, llamadas, tablas, kbd, listas anidadas, code wrap, slugify, mermaid, latex math, caché
+│   ├── test_app_api.py        # 43 tests: Endpoints REST GET/POST, router, modelos, assets, UI modular, tray y portapapeles
+│   ├── test_tray_manager.py   # 7 tests: Estructuras Win32, ciclo de vida del hilo, menús, callbacks y globo
+│   ├── test_window_geometry.py# 9 tests: Dimensiones responsivas de pantalla escritorio vs laptop
 │   ├── test_config_and_history.py # 9 tests: Configuración, límite de 10 ítems, purga de fantasmas y recarga selectiva
-│   ├── test_installer_and_distribution.py # 15 tests: Integridad del instalador, accesos directos y portabilidad
+│   ├── test_installer_and_distribution.py # 9 tests: Integridad del instalador, accesos directos y portabilidad
 │   └── test_security.py       # 5 tests: Traversal defense en /assets/, protección y XSS
 │
 ├── assets/
@@ -91,7 +91,7 @@ MarkdownToHTML_App/
 │
 ├── config.template.json       # Plantilla limpia rastreada en Git para inicialización
 ├── config.json                # Configuración persistente local (en .gitignore, aislada de Git)
-├── run_tests.py               # Ejecutor maestro de suite integral (140 tests)
+├── run_tests.py               # Ejecutor maestro de suite integral (180 tests)
 ├── verify_app.py              # Suite de pruebas de humo rápidas (10 checks automatizados)
 ├── run.bat                    # Lanzador rápido por lotes de Windows (1 clic)
 ├── launch.vbs                 # Lanzador secundario silencioso en VBScript
@@ -158,9 +158,13 @@ El parser implementa un compilador de un solo paso que procesa el documento lín
 3. **Alertas / Callouts Estilo GitHub & Apple HIG (`markdown_parser.py` + `templates/icons.py`):**
    - Reconoce la sintaxis `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`.
    - Genera contenedores con bordes temáticos diferenciados e inyecta iconos vectoriales SVG nativos sin peticiones de red.
-4. **Bloques de Código y Sintaxis (`inline_parser.py`):**
+4. **Bloques de Código y Sintaxis (`inline_parser.py` + `document.css`):**
    - Bloques delimitados por triple tilde invertida ```lang o tildes ~~~lang de cualquier longitud.
-   - Cabecera con nombre del lenguaje en mayúsculas y botón táctil **"Copiar"** con feedback en tiempo real.
+   - Cabecera con nombre del lenguaje en mayúsculas y grupo de acciones (`.code-actions`) que incluye botón interactivo **"Ajuste"** (Wrap) y botón táctil **"Copiar"** con feedback en tiempo real.
+   - **Ajuste de Línea (Code Wrap) Activo por Defecto:** Los bloques de código se ajustan automáticamente al ancho del contenedor (`white-space: pre-wrap; word-break: break-all; overflow-x: hidden;`), eliminando barras de scroll horizontal molestas.
+   - **Alternancia Dinámica de Modo (Toggle):** El botón "Ajuste" permite al usuario alternar entre modo wrap y modo scroll horizontal (`white-space: pre; overflow-x: auto;`) de forma instantánea sin recargas de página.
+   - **Indicador Visual de Líneas Hijas (Continuation Marker ↳):** Las líneas que sufren quiebre de ajuste (hijas que provienen de la línea de arriba) implementan sangría francesa (hanging indent de 20px) y renderizan en su margen izquierdo una flecha angular vectorial `↳` en color ámbar volcánico (`#f97316` / `#ea580c`).
+   - **Inmunidad en Selección y Copiado:** La flecha indicadora está desacoplada del DOM de texto mediante capas de fondo vectoriales CSS (`background-image`), garantizando que la selección con ratón o el botón "Copiar" extraigan código fuente 100% puro, limpio y ejecutable, sin glifos residuales.
    - Resaltado sintáctico offline para palabras clave de `Python`, `JavaScript`, `JSON`, `PowerShell`, `Groovy`, `Gherkin` y bloques `diff` (líneas verdes `+` y rojas `-`).
 5. **Tablas Responsivas (`markdown_parser.py`):**
    - Detecta filas delimitadas por barras verticales `|` y separadores de alineación (`:---`, `:---:`, `---:`).
@@ -458,7 +462,7 @@ El script [install_shortcuts.ps1](file:///c:/General/MarkdownToHTML_App/install_
 
 La aplicación cuenta con dos niveles de validación automatizada:
 
-### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 140 Tests)
+### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 180 Tests)
 
 Para ejecutar la verificación completa de toda la base de código con aislamiento total de disco:
 
@@ -468,27 +472,27 @@ python "c:\General\MarkdownToHTML_App\run_tests.py"
 
 La suite modular utiliza exclusivamente la biblioteca estándar `unittest` (Zero-Bloatware) y se divide en 7 módulos especializados en `tests/`:
 
-1. **`tests/test_md_engine.py` (68 tests):**
+1. **`tests/test_md_engine.py` (98 tests):**
    - Validación exhaustiva de tokens y colores del tema Volcanic Amber & Deep Obsidian.
    - Generación y sanitización de slugs (`slugify`) con caracteres Unicode, acentos y emojis.
    - Detección inteligente y jerárquica de títulos (`detect_smart_title`).
-   - Badges de estado, atajos `[[kbd:...]]`, enlaces y resaltado sintáctico de código.
+   - Badges de estado, atajos `[[kbd:...]]`, enlaces, resaltado sintáctico y ajuste de línea interactivo (`Ajuste`) en bloques de código.
    - Contenedores de alertas GitHub/Apple con inyección de SVG nativos.
    - Tablas responsivas y jerarquía multinivel de listas anidadas (`ast_nodes.py`).
    - Diagramas Mermaid 100% offline y fórmulas matemáticas LaTeX (MathJax 3 SVG offline).
    - Catálogo cronológico (`index.html`), puntero (`latest.html`) y caché inteligente (`.index_cache.json`).
-2. **`tests/test_app_api.py` (27 tests):**
+2. **`tests/test_app_api.py` (43 tests):**
    - Servidor HTTP en loopback real sobre puerto efímero.
    - Servicio de SPA modular (`/`, `/styles.css`, `/app.js`) y recursos `/assets/`.
    - Despacho declarativo con `HttpRouter` y modelos `@dataclass` (`ParsedDocument`, `ConversionResult`, `WindowGeometry`).
    - Endpoints REST (`/api/config`, `/api/heartbeat`, `/api/shutdown`, `/api/convert`, `/api/delete-document`, `/api/clipboard`, `/api/open-app`, `/api/quit-app`, `/api/logs`).
-3. **`tests/test_tray_manager.py` (6 tests):**
+3. **`tests/test_tray_manager.py` (7 tests):**
    - Estructuras ctypes Win32 de 64 bits (`NOTIFYICONDATAW`), ciclo de vida del hilo, despacho asíncrono de callbacks y globo informativo.
-4. **`tests/test_window_geometry.py` (7 tests):**
+4. **`tests/test_window_geometry.py` (9 tests):**
    - Dimensionamiento responsivo para monitores grandes ($\ge 1600\text{px}$) y laptops ($< 1600\text{px}$).
 5. **`tests/test_config_and_history.py` (9 tests):**
    - Persistencia en `config.json`, recuperación ante corrupción, límite de 10 ítems y purga automática de archivos fantasma.
-6. **`tests/test_installer_and_distribution.py` (15 tests):**
+6. **`tests/test_installer_and_distribution.py` (9 tests):**
    - Integridad de paquetes esenciales (`md2html/`, `ui/`, scripts raíz), `instalar.bat`, `desinstalar.bat` y `install_shortcuts.ps1`.
 7. **`tests/test_security.py` (5 tests):**
    - Prevención de Path Traversal en `/assets/`, inmunidad de `index.html`/`latest.html` y sanitización XSS.

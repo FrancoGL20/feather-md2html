@@ -1237,6 +1237,73 @@ Garantía	1 año	2 años
         self.assertIn("background: transparent !important;", md_engine.COMMON_STYLES)
 
 
+class TestCodeBlockWrapFeature(unittest.TestCase):
+    """Pruebas unitarias para la funcionalidad de ajuste de línea (Wrap) y marcadores de continuación."""
+
+    def test_code_block_renders_wrap_button_active_by_default(self):
+        """Verifica que los bloques de código rendericen el botón Ajuste activado por defecto."""
+        md = "```python\nprint('Hola Mundo')\n```"
+        parsed = md_engine.parse_markdown(md)
+        body = parsed["body"]
+
+        self.assertIn('<div class="code-block">', body)
+        self.assertIn('<div class="code-actions">', body)
+        self.assertIn('class="copy-btn wrap-btn active"', body)
+        self.assertIn('onclick="toggleCodeWrap(this)"', body)
+        self.assertIn('title="Desactivar ajuste de línea"', body)
+        self.assertIn('<span>Ajuste</span>', body)
+        self.assertIn('onclick="copyCode(this)"', body)
+        self.assertIn('<pre><code>print(\'Hola Mundo\')</code></pre>', body)
+
+    def test_code_block_wrap_css_rules_and_tokens(self):
+        """Verifica que document.css contenga las reglas de modo wrap, scroll y preservación de estilo naranja."""
+        styles = md_engine.COMMON_STYLES
+        self.assertIn("--wrap-icon:", styles)
+        self.assertIn("16px 22px", styles)
+        self.assertIn(".code-actions", styles)
+        self.assertIn(".copy-btn.active", styles)
+        self.assertIn(".code-block pre code", styles)
+        self.assertIn(".code-block .code-line .code-text", styles)
+        self.assertIn("box-decoration-break: clone;", styles)
+        self.assertIn(".code-block .tok-diff-add, .code-block .tok-diff-del", styles)
+        self.assertIn(".code-block:not(.no-wrap) pre", styles)
+        self.assertIn(".code-block:not(.no-wrap) .code-line", styles)
+        self.assertIn(".code-block.no-wrap pre", styles)
+        self.assertIn(".code-block.no-wrap .code-line", styles)
+        self.assertIn("white-space: pre-wrap;", styles)
+        self.assertIn("white-space: pre;", styles)
+
+    def test_document_template_contains_code_wrap_scripts(self):
+        """Verifica que document.html contenga los controladores JavaScript sin saltos extra ni contaminación al copiar."""
+        template = md_engine.get_html_doc_template()
+        self.assertIn("function toggleCodeWrap(btn)", template)
+        self.assertIn("function initCodeBlocks()", template)
+        init_section = template.split("function initCodeBlocks()")[1].split("function toggleCodeWrap(btn)")[0]
+        self.assertIn('<span class="code-line"><span class="code-text">', init_section)
+        self.assertIn(").join('')", init_section)
+        self.assertNotIn(").join('\\n')", init_section)
+        self.assertIn("codeBlock.querySelectorAll('.code-line')", template)
+        self.assertIn("l.textContent", template)
+
+    def test_converted_document_preserves_clean_code_and_features(self):
+        """Verifica la generación completa de un documento HTML con código largo."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            md = (
+                "# Documento de Prueba\n\n"
+                "```powershell\n"
+                "Get-ChildItem -Path 'C:\\Test' -Recurse | Where-Object { $_.Length -gt 100 }\n"
+                "```\n"
+            )
+            res = md_engine.convert_and_update_library(md, tmp_dir, "Test Wrap")
+            self.assertTrue(res["success"])
+            html_content = Path(res["file_path"]).read_text(encoding="utf-8")
+
+            self.assertIn("wrap-btn active", html_content)
+            self.assertIn("toggleCodeWrap", html_content)
+            self.assertIn("initCodeBlocks", html_content)
+            self.assertIn("--wrap-icon", html_content)
+
+
 if __name__ == "__main__":
     unittest.main()
 

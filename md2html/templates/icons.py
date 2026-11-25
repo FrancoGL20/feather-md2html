@@ -33,6 +33,13 @@ ICON_COPY = (
     '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>'
 )
 
+ICON_WRAP = (
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    'stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+    '<polyline points="9 10 4 15 9 20"></polyline>'
+    '<path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>'
+)
+
 ICON_SEARCH = (
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
     'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
