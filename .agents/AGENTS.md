@@ -34,9 +34,10 @@ MarkdownToHTML_App/
 │   │   ├── ports.py           # Contratos de puertos (typing.Protocol): Config, Cache, Window, Clipboard, Dialog
 │   │   ├── compiler/          # Motor de compilación Markdown -> AST -> HTML
 │   │   │   ├── ast_nodes.py       # Nodos AST jerárquicos para listas anidadas y checklists
-│   │   │   ├── inline_parser.py   # Slugs, badges, atajos kbd, enlaces, código inline y resaltado sintáctico
+│   │   │   ├── inline_parser.py   # Slugs, badges, atajos kbd, enlaces, código inline y fachada highlight
 │   │   │   ├── markdown_parser.py # Analizador léxico/sintáctico de bloques, tablas, alertas y Mermaid
 │   │   │   ├── math_protector.py  # Tokenización defensiva LaTeX y ensamblaje MathJax 3 SVG offline
+│   │   │   ├── syntax_highlighter.py # Tokenizador léxico Zero-Bloatware multi-lenguaje y emisión line-safe
 │   │   │   └── title_detector.py  # Detección jerárquica de títulos (Frontmatter, H1-H6 fuera de código, Setext, negrita)
 │   │   └── services/          # Casos de uso de aplicación
 │   │       ├── catalog_service.py    # Generación de index.html, latest.html y eliminación segura
@@ -71,16 +72,16 @@ MarkdownToHTML_App/
 │   ├── styles.css             # Sistema de diseño CSS3 y tokens Volcanic Amber
 │   └── app.js                 # Lógica reactiva cliente, Web Worker de latidos y comunicación API
 │
-├── tests/                     # Suite exhaustiva modular (180 tests con unittest nativo, zero-bloatware)
+├── tests/                     # Suite exhaustiva modular (186 tests con unittest nativo, zero-bloatware)
 │   ├── __init__.py            # Inicializador de paquete de pruebas
 │   ├── test_helpers.py        # Clases base aisladas en carpetas temporales y mocks
-│   ├── test_md_engine.py      # 98 tests: AST, llamadas, tablas, kbd, listas anidadas, code wrap, slugify, mermaid, latex math, caché
+│   ├── test_md_engine.py      # 103 tests: AST, llamadas, tablas, kbd, listas anidadas, code wrap, syntax lexer, slugify, mermaid, latex math, caché
 │   ├── test_app_api.py        # 43 tests: Endpoints REST GET/POST, router, modelos, assets, UI modular, tray y portapapeles
 │   ├── test_tray_manager.py   # 7 tests: Estructuras Win32, ciclo de vida del hilo, menús, callbacks y globo
 │   ├── test_window_geometry.py# 9 tests: Dimensiones responsivas de pantalla escritorio vs laptop
 │   ├── test_config_and_history.py # 9 tests: Configuración, límite de 10 ítems, purga de fantasmas y recarga selectiva
 │   ├── test_installer_and_distribution.py # 9 tests: Integridad del instalador, accesos directos y portabilidad
-│   └── test_security.py       # 5 tests: Traversal defense en /assets/, protección y XSS
+│   └── test_security.py       # 6 tests: Traversal defense en /assets/, protección y XSS en código resaltado
 │
 ├── assets/
 │   ├── app_icon.ico           # Icono multi-resolución en formato nativo Windows ICO (256x256)
@@ -91,7 +92,7 @@ MarkdownToHTML_App/
 │
 ├── config.template.json       # Plantilla limpia rastreada en Git para inicialización
 ├── config.json                # Configuración persistente local (en .gitignore, aislada de Git)
-├── run_tests.py               # Ejecutor maestro de suite integral (180 tests)
+├── run_tests.py               # Ejecutor maestro de suite integral (186 tests)
 ├── verify_app.py              # Suite de pruebas de humo rápidas (10 checks automatizados)
 ├── run.bat                    # Lanzador rápido por lotes de Windows (1 clic)
 ├── launch.vbs                 # Lanzador secundario silencioso en VBScript
@@ -158,14 +159,14 @@ El parser implementa un compilador de un solo paso que procesa el documento lín
 3. **Alertas / Callouts Estilo GitHub & Apple HIG (`markdown_parser.py` + `templates/icons.py`):**
    - Reconoce la sintaxis `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`.
    - Genera contenedores con bordes temáticos diferenciados e inyecta iconos vectoriales SVG nativos sin peticiones de red.
-4. **Bloques de Código y Sintaxis (`inline_parser.py` + `document.css`):**
+4. **Bloques de Código y Resaltado Sintáctico (`syntax_highlighter.py`, `inline_parser.py` y `document.css`):**
    - Bloques delimitados por triple tilde invertida ```lang o tildes ~~~lang de cualquier longitud.
    - Cabecera con nombre del lenguaje en mayúsculas y grupo de acciones (`.code-actions`) que incluye botón interactivo **"Ajuste"** (Wrap) y botón táctil **"Copiar"** con feedback en tiempo real.
    - **Ajuste de Línea (Code Wrap) Activo por Defecto:** Los bloques de código se ajustan automáticamente al ancho del contenedor (`white-space: pre-wrap; word-break: break-all; overflow-x: hidden;`), eliminando barras de scroll horizontal molestas.
    - **Alternancia Dinámica de Modo (Toggle):** El botón "Ajuste" permite al usuario alternar entre modo wrap y modo scroll horizontal (`white-space: pre; overflow-x: auto;`) de forma instantánea sin recargas de página.
    - **Indicador Visual de Líneas Hijas (Continuation Marker ↳):** Las líneas que sufren quiebre de ajuste (hijas que provienen de la línea de arriba) implementan sangría francesa (hanging indent de 20px) y renderizan en su margen izquierdo una flecha angular vectorial `↳` en color ámbar volcánico (`#f97316` / `#ea580c`).
    - **Inmunidad en Selección y Copiado:** La flecha indicadora está desacoplada del DOM de texto mediante capas de fondo vectoriales CSS (`background-image`), garantizando que la selección con ratón o el botón "Copiar" extraigan código fuente 100% puro, limpio y ejecutable, sin glifos residuales.
-   - Resaltado sintáctico offline para palabras clave de `Python`, `JavaScript`, `JSON`, `PowerShell`, `Groovy`, `Gherkin` y bloques `diff` (líneas verdes `+` y rojas `-`).
+   - **Tokenizador Léxico Multi-Lenguaje Zero-Bloatware (`syntax_highlighter.py`):** Resaltado estático en una sola pasada sobre texto crudo previo al escape HTML (`_emit_line_safe` cierra y reabre `<span>` en cada salto `\n` para compatibilidad absoluta con `initCodeBlocks()`), con texto base neutro (`var(--code-block-text)`) en `.code-block .code-line .code-text` y paleta semántica de alto contraste (`.tok-kw`, `.tok-step`, `.tok-str`, `.tok-comment`, `.tok-num`, `.tok-const`, `.tok-type`, `.tok-fn`, `.tok-tag`, `.tok-attr`, `.tok-var`, `.tok-op`, `.tok-diff-add`, `.tok-diff-del`). Soporta **Gherkin** (EN/ES, `@tags`, secciones, pasos, `<placeholders>`, DocStrings, tablas), **Groovy** (`gradle`/`jenkinsfile`/`katalon`, GStrings `${...}`, anotaciones, comentarios multilínea), **Python** (`f-strings`), **JavaScript/TypeScript**, **Java**, **Kotlin**, **C#**, **Go**, **Rust**, **C/C++**, **PHP**, **Ruby**, **PowerShell** (cmdlets/variables/flags sin falsos positivos en rutas), **Bash/Shell**, **Batch**, **SQL**, **JSON/JSONC**, **YAML**, **TOML**, **INI/Properties**, **HTML/XML**, **CSS/SCSS**, **Dockerfile**, **HTTP**, **GraphQL**, **Markdown** y **Diff**, junto con sus alias comunes.
 5. **Tablas Responsivas (`markdown_parser.py`):**
    - Detecta filas delimitadas por barras verticales `|` y separadores de alineación (`:---`, `:---:`, `---:`).
    - Envuelve la tabla en un contenedor `.table-container` con `overflow-x: auto` y sombreado zebra striping.
@@ -462,7 +463,7 @@ El script [install_shortcuts.ps1](file:///c:/General/MarkdownToHTML_App/install_
 
 La aplicación cuenta con dos niveles de validación automatizada:
 
-### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 180 Tests)
+### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 186 Tests)
 
 Para ejecutar la verificación completa de toda la base de código con aislamiento total de disco:
 
@@ -472,11 +473,11 @@ python "c:\General\MarkdownToHTML_App\run_tests.py"
 
 La suite modular utiliza exclusivamente la biblioteca estándar `unittest` (Zero-Bloatware) y se divide en 7 módulos especializados en `tests/`:
 
-1. **`tests/test_md_engine.py` (98 tests):**
+1. **`tests/test_md_engine.py` (103 tests):**
    - Validación exhaustiva de tokens y colores del tema Volcanic Amber & Deep Obsidian.
    - Generación y sanitización de slugs (`slugify`) con caracteres Unicode, acentos y emojis.
    - Detección inteligente y jerárquica de títulos (`detect_smart_title`).
-   - Badges de estado, atajos `[[kbd:...]]`, enlaces, resaltado sintáctico y ajuste de línea interactivo (`Ajuste`) en bloques de código.
+   - Badges de estado, atajos `[[kbd:...]]`, enlaces, resaltado sintáctico léxico multi-lenguaje (`Gherkin`, `Groovy`, `Python`, `TS/JS`, `SQL`, `YAML`, `JSON`, `PowerShell`, etc.) y ajuste de línea interactivo (`Ajuste`) en bloques de código.
    - Contenedores de alertas GitHub/Apple con inyección de SVG nativos.
    - Tablas responsivas y jerarquía multinivel de listas anidadas (`ast_nodes.py`).
    - Diagramas Mermaid 100% offline y fórmulas matemáticas LaTeX (MathJax 3 SVG offline).
@@ -494,8 +495,8 @@ La suite modular utiliza exclusivamente la biblioteca estándar `unittest` (Zero
    - Persistencia en `config.json`, recuperación ante corrupción, límite de 10 ítems y purga automática de archivos fantasma.
 6. **`tests/test_installer_and_distribution.py` (9 tests):**
    - Integridad de paquetes esenciales (`md2html/`, `ui/`, scripts raíz), `instalar.bat`, `desinstalar.bat` y `install_shortcuts.ps1`.
-7. **`tests/test_security.py` (5 tests):**
-   - Prevención de Path Traversal en `/assets/`, inmunidad de `index.html`/`latest.html` y sanitización XSS.
+7. **`tests/test_security.py` (6 tests):**
+   - Prevención de Path Traversal en `/assets/`, inmunidad de `index.html`/`latest.html` y sanitización XSS en bloques resaltados y código inline.
 
 ### 8.2. Suite de Verificación Rápida de Humo (`verify_app.py` - 10 Checks)
 
