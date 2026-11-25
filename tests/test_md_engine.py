@@ -7,6 +7,7 @@ and catalog generation.
 """
 
 import os
+import re
 import sys
 import time
 import shutil
@@ -422,6 +423,118 @@ class TestCodeBlocksAndSyntaxHighlighting(unittest.TestCase):
         self.assertIn('<span class="tok-kw">param</span>', res)
         self.assertIn('<span class="tok-kw">foreach</span>', res)
         self.assertIn('<span class="tok-kw">return</span>', res)
+        self.assertIn('<span class="tok-var">$Path</span>', res)
+
+    def test_gherkin_syntax_highlighting_english_and_spanish(self):
+        gherkin = (
+            '@smoke @JIRA-42\n'
+            'Feature: Autenticación de usuarios\n'
+            '  # Comentario descriptivo\n'
+            '  Scenario Outline: Login válido\n'
+            '    Given el usuario abre "/login"\n'
+            '    When ingresa "<correo>" y 3 intentos\n'
+            '    Then responde "OK"\n'
+            '    And mantiene sesión activa\n'
+            '    Examples:\n'
+            '      | correo       | estado |\n'
+            '      | qa@demo.com  | 200    |\n'
+            '  Escenario: En español\n'
+            '    Dado que existe un usuario\n'
+            '    Cuando inicia sesión\n'
+            '    Entonces entra al panel\n'
+            '    """\n'
+            '    Payload JSON multilínea\n'
+            '    """'
+        )
+        for alias in ("gherkin", "feature", "cucumber"):
+            res = md_engine.highlight_code_block(gherkin, alias)
+            self.assertIn('<span class="tok-tag">@smoke</span>', res)
+            self.assertIn('<span class="tok-tag">@JIRA-42</span>', res)
+            self.assertIn('<span class="tok-kw">Feature:</span>', res)
+            self.assertIn('<span class="tok-kw">Scenario Outline:</span>', res)
+            self.assertIn('<span class="tok-kw">Examples:</span>', res)
+            self.assertIn('<span class="tok-kw">Escenario:</span>', res)
+            self.assertIn('<span class="tok-step">Given</span>', res)
+            self.assertIn('<span class="tok-step">When</span>', res)
+            self.assertIn('<span class="tok-step">Then</span>', res)
+            self.assertIn('<span class="tok-step">And</span>', res)
+            self.assertIn('<span class="tok-step">Dado</span>', res)
+            self.assertIn('<span class="tok-step">Cuando</span>', res)
+            self.assertIn('<span class="tok-step">Entonces</span>', res)
+            self.assertIn('<span class="tok-str">"/login"</span>', res)
+            self.assertIn('<span class="tok-const">&lt;correo&gt;</span>', res)
+            self.assertIn('<span class="tok-num">3</span>', res)
+            self.assertIn('<span class="tok-op">|</span>', res)
+            self.assertIn('<span class="tok-comment">  # Comentario descriptivo</span>', res)
+            self.assertIn('<span class="tok-str">    Payload JSON multilínea</span>', res)
+
+    def test_groovy_syntax_highlighting_and_gstrings(self):
+        groovy = (
+            'import com.kms.katalon.core.webui.keyword.WebUiBuiltInKeywords as WebUI\n'
+            '/* Comentario\n'
+            '   multilínea */\n'
+            '@Keyword\n'
+            'def saludar(String nombre) {\n'
+            '    def msg = "Hola ${nombre}, id=$userId"\n'
+            '    def literal = \'${no_interpolar}\'\n'
+            '    WebUI.comment(msg)\n'
+            '    return 42\n'
+            '}'
+        )
+        for alias in ("groovy", "gradle", "jenkinsfile", "katalon"):
+            res = md_engine.highlight_code_block(groovy, alias)
+            self.assertIn('<span class="tok-kw">import</span>', res)
+            self.assertIn('<span class="tok-kw">as</span>', res)
+            self.assertIn('<span class="tok-kw">def</span>', res)
+            self.assertIn('<span class="tok-kw">return</span>', res)
+            self.assertIn('<span class="tok-tag">@Keyword</span>', res)
+            self.assertIn('<span class="tok-type">String</span>', res)
+            self.assertIn('<span class="tok-type">WebUI</span>', res)
+            self.assertIn('<span class="tok-fn">saludar</span>', res)
+            self.assertIn('<span class="tok-fn">comment</span>', res)
+            self.assertIn('<span class="tok-var">${nombre}</span>', res)
+            self.assertIn('<span class="tok-var">$userId</span>', res)
+            self.assertIn('<span class="tok-str">\'${no_interpolar}\'</span>', res)
+            self.assertIn('<span class="tok-num">42</span>', res)
+            # Multiline comments must remain line-safe (balanced per line)
+            for line in res.split("\n"):
+                self.assertEqual(line.count("<span "), line.count("</span>"))
+
+    def test_popular_languages_aliases_and_line_safety(self):
+        cases = [
+            ("py", 'def run():\n    x = f"hi {name}"\n    # if return\n    return True', '<span class="tok-var">{name}</span>'),
+            ("ts", 'interface User { id: number; }\nconst fn = (u: User) => `id=${u.id}`;', '<span class="tok-kw">interface</span>'),
+            ("java", '@Override\npublic String getName() { return "A"; }', '<span class="tok-tag">@Override</span>'),
+            ("cs", '[Fact]\npublic async Task RunAsync() { await Task.Delay(10); }', '<span class="tok-tag">[Fact]</span>'),
+            ("go", 'func main() {\n    fmt.Println("ok")\n}', '<span class="tok-kw">func</span>'),
+            ("rust", 'fn main() {\n    println!("ok");\n}', '<span class="tok-fn">println!</span>'),
+            ("sh", 'git status --short # check\necho "$HOME"', '<span class="tok-attr">--short</span>'),
+            ("sql", "SELECT COUNT(*) FROM users WHERE active = TRUE AND id = 7;", '<span class="tok-kw">SELECT</span>'),
+            ("json", '{"status": "active", "port": 8080, "ok": false}', '<span class="tok-attr">"status"</span>'),
+            ("yml", 'services:\n  api:\n    port: 8080\n    enabled: true\n    note: Turn on logs', '<span class="tok-attr">port</span>'),
+            ("css", '.card { color: #f97316; padding: 12px; width: 50%; }', '<span class="tok-num">50%</span>'),
+            ("dockerfile", 'FROM python:3.12-slim\nCOPY . /app\nRUN pip install --no-cache-dir', '<span class="tok-kw">FROM</span>'),
+            ("http", 'POST https://api.example.com/v1/items HTTP/1.1\nContent-Type: "application/json"', '<span class="tok-kw">POST</span>'),
+        ]
+        for lang, code, expected_fragment in cases:
+            res = md_engine.highlight_code_block(code, lang)
+            self.assertIn(expected_fragment, res, f"Fallo en lenguaje '{lang}'")
+            for line in res.split("\n"):
+                self.assertEqual(line.count("<span "), line.count("</span>"), f"Tag desbalanceado en '{lang}': {line}")
+
+    def test_keywords_inside_strings_and_comments_not_rehighlighted(self):
+        code = 'msg = "def class return if"\n# def return class\nok = 1'
+        res = md_engine.highlight_code_block(code, "python")
+        self.assertIn('<span class="tok-str">"def class return if"</span>', res)
+        self.assertIn('<span class="tok-comment"># def return class</span>', res)
+        self.assertNotIn('<span class="tok-kw">', res)
+
+    def test_unknown_language_and_info_string_extraction(self):
+        self.assertEqual(md_engine.resolve_language('python title="app.py"'), "python")
+        self.assertEqual(md_engine.resolve_language(".groovy"), "groovy")
+        self.assertEqual(md_engine.resolve_language("unknown_xyz"), "")
+        plain = md_engine.highlight_code_block("<tag> & 'x'", "unknown_xyz")
+        self.assertEqual(plain, "&lt;tag&gt; &amp; 'x'")
 
     def test_strip_fence_indent_semantics(self):
         """Verifica que strip_fence_indent elimine hasta N espacios respetando sangría relativa."""
@@ -450,7 +563,11 @@ echo "Hello from tilde block"
         html = md_engine.compile_markdown_to_body(md)
         self.assertIn('<div class="code-block">', html)
         self.assertIn('<span>BASH</span>', html)
-        self.assertIn('echo "Hello from tilde block"', html)
+        m = re.search(r"<pre><code>([\s\S]*?)</code></pre>", html)
+        self.assertIsNotNone(m)
+        self.assertEqual(re.sub(r"<[^>]+>", "", m.group(1)), 'echo "Hello from tilde block"')
+        self.assertIn('<span class="tok-fn">echo</span>', m.group(1))
+        self.assertIn('<span class="tok-str">"Hello from tilde block"</span>', m.group(1))
 
     def test_indented_code_block_strips_fence_spaces_in_html(self):
         """Verifica que bloques de código indentados no tengan espacios residuales en <pre><code>."""
@@ -460,10 +577,15 @@ echo "Hello from tilde block"
      ```"""
         html = md_engine.compile_markdown_to_body(md)
         self.assertIn('<div class="code-block">', html)
-        self.assertIn(
-            "<pre><code>cd C:\\Users\\FranciscoGutierrezLo\\Rebus\\front-end\n  Get-ChildItem -Recurse</code></pre>",
-            html,
+        m = re.search(r"<pre><code>([\s\S]*?)</code></pre>", html)
+        self.assertIsNotNone(m)
+        plain_code = re.sub(r"<[^>]+>", "", m.group(1))
+        self.assertEqual(
+            plain_code,
+            "cd C:\\Users\\FranciscoGutierrezLo\\Rebus\\front-end\n  Get-ChildItem -Recurse",
         )
+        self.assertIn('<span class="tok-fn">Get-ChildItem</span>', m.group(1))
+        self.assertIn('<span class="tok-attr">-Recurse</span>', m.group(1))
 
 
 class TestCalloutAlerts(unittest.TestCase):
@@ -600,10 +722,14 @@ class TestListHierarchy(unittest.TestCase):
         self.assertIn("<li>Abre PowerShell en la carpeta de <code>front-end</code>:", html)
         self.assertIn("<pre><code>cd C:\\Users\\FranciscoGutierrezLo\\Rebus\\front-end</code></pre>", html)
         self.assertIn("<li>Ejecuta los siguientes tres comandos de verificación:", html)
-        self.assertIn(
-            "<pre><code>Test-Path \".\\support_centre\"\nTest-Path \".\\dist\\rebus\\helpcenter\"\ngit submodule status</code></pre>",
-            html,
+        code_blocks = re.findall(r"<pre><code>([\s\S]*?)</code></pre>", html)
+        self.assertEqual(len(code_blocks), 2)
+        second_plain = re.sub(r"<[^>]+>", "", code_blocks[1])
+        self.assertEqual(
+            second_plain,
+            "Test-Path \".\\support_centre\"\nTest-Path \".\\dist\\rebus\\helpcenter\"\ngit submodule status",
         )
+        self.assertIn('<span class="tok-fn">Test-Path</span>', code_blocks[1])
 
     def test_tilde_code_block_inside_list_item(self):
         """Verifica que bloques de código con tildes ~~~ funcionen anidados dentro de una lista."""
@@ -615,7 +741,12 @@ class TestListHierarchy(unittest.TestCase):
 """
         html = md_engine.compile_markdown_to_body(md)
         self.assertIn('<span>JSON</span>', html)
-        self.assertIn('{"status": "active", "port": 8080}', html)
+        m = re.search(r"<pre><code>([\s\S]*?)</code></pre>", html)
+        self.assertIsNotNone(m)
+        self.assertEqual(re.sub(r"<[^>]+>", "", m.group(1)), '{"status": "active", "port": 8080}')
+        self.assertIn('<span class="tok-attr">"status"</span>', m.group(1))
+        self.assertIn('<span class="tok-str">"active"</span>', m.group(1))
+        self.assertIn('<span class="tok-num">8080</span>', m.group(1))
         self.assertIn("<li>Siguiente punto</li>", html)
 
     def test_mermaid_and_math_inside_list_item(self):
@@ -1253,10 +1384,14 @@ class TestCodeBlockWrapFeature(unittest.TestCase):
         self.assertIn('title="Desactivar ajuste de línea"', body)
         self.assertIn('<span>Ajuste</span>', body)
         self.assertIn('onclick="copyCode(this)"', body)
-        self.assertIn('<pre><code>print(\'Hola Mundo\')</code></pre>', body)
+        m = re.search(r"<pre><code>([\s\S]*?)</code></pre>", body)
+        self.assertIsNotNone(m)
+        self.assertEqual(re.sub(r"<[^>]+>", "", m.group(1)), "print('Hola Mundo')")
+        self.assertIn('<span class="tok-fn">print</span>', m.group(1))
+        self.assertIn('<span class="tok-str">\'Hola Mundo\'</span>', m.group(1))
 
     def test_code_block_wrap_css_rules_and_tokens(self):
-        """Verifica que document.css contenga las reglas de modo wrap, scroll y preservación de estilo naranja."""
+        """Verifica que document.css contenga las reglas de modo wrap, scroll, tokens de sintaxis y contraste neutro."""
         styles = md_engine.COMMON_STYLES
         self.assertIn("--wrap-icon:", styles)
         self.assertIn("16px 22px", styles)
@@ -1264,7 +1399,10 @@ class TestCodeBlockWrapFeature(unittest.TestCase):
         self.assertIn(".copy-btn.active", styles)
         self.assertIn(".code-block pre code", styles)
         self.assertIn(".code-block .code-line .code-text", styles)
+        self.assertIn("color: var(--code-block-text);", styles)
         self.assertIn("box-decoration-break: clone;", styles)
+        for tok in (".tok-kw", ".tok-step", ".tok-str", ".tok-comment", ".tok-num", ".tok-const", ".tok-type", ".tok-fn", ".tok-tag", ".tok-attr", ".tok-var", ".tok-op"):
+            self.assertIn(tok, styles)
         self.assertIn(".code-block .tok-diff-add, .code-block .tok-diff-del", styles)
         self.assertIn(".code-block:not(.no-wrap) pre", styles)
         self.assertIn(".code-block:not(.no-wrap) .code-line", styles)

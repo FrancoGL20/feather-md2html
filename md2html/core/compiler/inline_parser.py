@@ -7,7 +7,9 @@ Inline Markdown formatting, slug generation, status badges, and syntax highlight
 import html
 import re
 import unicodedata
-from typing import Dict, List
+from typing import List
+
+from md2html.core.compiler.syntax_highlighter import highlight_code
 
 
 def escape(text: str) -> str:
@@ -157,39 +159,9 @@ def inline_formatting(text: str) -> str:
     return text
 
 
-_SYNTAX_KEYWORDS: Dict[str, str] = {
-    "python": (
-        r"\b(def|class|return|import|from|as|if|elif|else|for|while|try|except|"
-        r"finally|raise|with|pass|lambda|yield|True|False|None|and|or|not|is|in)\b"
-    ),
-    "javascript": (
-        r"\b(function|const|let|var|return|if|else|for|while|try|catch|finally|"
-        r"throw|class|new|import|from|export|default|true|false|null|undefined|async|await)\b"
-    ),
-    "json": r"\b(true|false|null)\b",
-    "powershell": r"\b(function|param|if|else|elseif|foreach|while|try|catch|finally|return|throw|switch)\b",
-}
-
-
 def highlight_code_block(code_raw: str, lang: str) -> str:
-    """Applies lightweight regex-based syntax highlighting to fenced code blocks."""
-    esc = escape(code_raw)
-    lang_lower = (lang or "").lower().strip()
-    if lang_lower == "diff":
-        lines = []
-        for line in esc.splitlines():
-            if line.startswith("+"):
-                lines.append(f'<span class="tok-diff-add">{line}</span>')
-            elif line.startswith("-"):
-                lines.append(f'<span class="tok-diff-del">{line}</span>')
-            else:
-                lines.append(line)
-        return "\n".join(lines)
-
-    kw_regex = _SYNTAX_KEYWORDS.get(lang_lower)
-    if kw_regex:
-        esc = re.sub(kw_regex, r'<span class="tok-kw">\1</span>', esc)
-    return esc
+    """Applies zero-bloatware lexical syntax highlighting to fenced code blocks."""
+    return highlight_code(code_raw, lang)
 
 
 def clean_markdown_inline(text: str) -> str:

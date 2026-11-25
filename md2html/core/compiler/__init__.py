@@ -36,6 +36,12 @@ from md2html.core.compiler.math_protector import (
     get_math_runtime_code,
     is_math_heading_or_line,
 )
+from md2html.core.compiler.syntax_highlighter import (
+    LANGUAGE_ALIASES,
+    SUPPORTED_LANGUAGES,
+    highlight_code,
+    resolve_language,
+)
 from md2html.core.compiler.title_detector import (
     detect_smart_title,
     find_code_block_line_indices,
@@ -44,10 +50,12 @@ from md2html.core.compiler.title_detector import (
 
 __all__ = [
     "ItemNode",
+    "LANGUAGE_ALIASES",
     "ListNode",
     "MATHJAX_CLIENT_CONFIG",
     "MATH_CSS_STYLES",
     "MathContext",
+    "SUPPORTED_LANGUAGES",
     "_TOKEN_BLOCK_PREFIX",
     "_TOKEN_ESCAPED_DOLLAR",
     "_TOKEN_INLINE_PREFIX",
@@ -62,6 +70,7 @@ __all__ = [
     "format_stem_as_title",
     "generate_math_scripts",
     "get_math_runtime_code",
+    "highlight_code",
     "highlight_code_block",
     "inline_formatting",
     "is_list_marker",
@@ -70,6 +79,7 @@ __all__ = [
     "parse_markdown",
     "render_item_node",
     "render_list_node",
+    "resolve_language",
     "slugify",
     "strip_fence_indent",
 ]

@@ -88,10 +88,33 @@ class TestSecurityDefenses(IsolatedEnvironmentTestCase):
 
     def test_xss_script_tags_escaped_in_code_blocks(self):
         """Ensure script tags inside code blocks are HTML-escaped and non-executable."""
+        import html as html_lib
+        import re
+
         md = "```html\n<script>alert('xss');</script>\n```"
         compiled = md_engine.compile_markdown_to_body(md)
         self.assertNotIn("<script>", compiled)
-        self.assertIn("&lt;script&gt;alert('xss');&lt;/script&gt;", compiled)
+        self.assertNotIn("</script>", compiled)
+        self.assertIn("&lt;", compiled)
+        self.assertIn("&gt;", compiled)
+        m = re.search(r"<pre><code>([\s\S]*?)</code></pre>", compiled)
+        self.assertIsNotNone(m)
+        plain = html_lib.unescape(re.sub(r"<[^>]+>", "", m.group(1)))
+        self.assertEqual(plain, "<script>alert('xss');</script>")
+
+    def test_xss_payloads_escaped_inside_highlighted_strings_and_comments(self):
+        """Ensure HTML/XSS payloads inside highlighted strings or comments remain escaped."""
+        md = (
+            "```groovy\n"
+            '// <script>alert(1)</script>\n'
+            'def x = "<img src=x onerror=alert(2)>"\n'
+            "```"
+        )
+        compiled = md_engine.compile_markdown_to_body(md)
+        self.assertNotIn("<script>", compiled)
+        self.assertNotIn("<img ", compiled)
+        self.assertIn("&lt;script&gt;", compiled)
+        self.assertIn("&lt;img src=x onerror=alert(2)&gt;", compiled)
 
     def test_xss_script_tags_escaped_in_inline_code(self):
         """Ensure script tags in inline code are HTML-escaped."""
