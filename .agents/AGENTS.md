@@ -72,10 +72,10 @@ MarkdownToHTML_App/
 │   ├── styles.css             # Sistema de diseño CSS3 y tokens Volcanic Amber
 │   └── app.js                 # Lógica reactiva cliente, Web Worker de latidos y comunicación API
 │
-├── tests/                     # Suite exhaustiva modular (186 tests con unittest nativo, zero-bloatware)
+├── tests/                     # Suite exhaustiva modular (187 tests con unittest nativo, zero-bloatware)
 │   ├── __init__.py            # Inicializador de paquete de pruebas
 │   ├── test_helpers.py        # Clases base aisladas en carpetas temporales y mocks
-│   ├── test_md_engine.py      # 103 tests: AST, llamadas, tablas, kbd, listas anidadas, code wrap, syntax lexer, slugify, mermaid, latex math, caché
+│   ├── test_md_engine.py      # 104 tests: AST, llamadas, tablas, kbd, listas anidadas, code wrap, syntax lexer, slugify, mermaid, latex math, caché
 │   ├── test_app_api.py        # 43 tests: Endpoints REST GET/POST, router, modelos, assets, UI modular, tray y portapapeles
 │   ├── test_tray_manager.py   # 7 tests: Estructuras Win32, ciclo de vida del hilo, menús, callbacks y globo
 │   ├── test_window_geometry.py# 9 tests: Dimensiones responsivas de pantalla escritorio vs laptop
@@ -92,7 +92,7 @@ MarkdownToHTML_App/
 │
 ├── config.template.json       # Plantilla limpia rastreada en Git para inicialización
 ├── config.json                # Configuración persistente local (en .gitignore, aislada de Git)
-├── run_tests.py               # Ejecutor maestro de suite integral (186 tests)
+├── run_tests.py               # Ejecutor maestro de suite integral (187 tests)
 ├── verify_app.py              # Suite de pruebas de humo rápidas (10 checks automatizados)
 ├── run.bat                    # Lanzador rápido por lotes de Windows (1 clic)
 ├── launch.vbs                 # Lanzador secundario silencioso en VBScript
@@ -162,10 +162,10 @@ El parser implementa un compilador de un solo paso que procesa el documento lín
 4. **Bloques de Código y Resaltado Sintáctico (`syntax_highlighter.py`, `inline_parser.py` y `document.css`):**
    - Bloques delimitados por triple tilde invertida ```lang o tildes ~~~lang de cualquier longitud.
    - Cabecera con nombre del lenguaje en mayúsculas y grupo de acciones (`.code-actions`) que incluye botón interactivo **"Ajuste"** (Wrap) y botón táctil **"Copiar"** con feedback en tiempo real.
-   - **Ajuste de Línea (Code Wrap) Activo por Defecto:** Los bloques de código se ajustan automáticamente al ancho del contenedor (`white-space: pre-wrap; word-break: break-all; overflow-x: hidden;`), eliminando barras de scroll horizontal molestas.
+   - **Ajuste de Línea Inteligente (Smart Code Wrap) Activo por Defecto:** Los bloques de código se ajustan al ancho del contenedor por límites de palabra (`white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere; overflow-x: hidden; tab-size: 4;`), evitando cortes arbitrarios a mitad de palabra y barras de scroll horizontal molestas.
    - **Alternancia Dinámica de Modo (Toggle):** El botón "Ajuste" permite al usuario alternar entre modo wrap y modo scroll horizontal (`white-space: pre; overflow-x: auto;`) de forma instantánea sin recargas de página.
-   - **Indicador Visual de Líneas Hijas (Continuation Marker ↳):** Las líneas que sufren quiebre de ajuste (hijas que provienen de la línea de arriba) implementan sangría francesa (hanging indent de 20px) y renderizan en su margen izquierdo una flecha angular vectorial `↳` en color ámbar volcánico (`#f97316` / `#ea580c`).
-   - **Inmunidad en Selección y Copiado:** La flecha indicadora está desacoplada del DOM de texto mediante capas de fondo vectoriales CSS (`background-image`), garantizando que la selección con ratón o el botón "Copiar" extraigan código fuente 100% puro, limpio y ejecutable, sin glifos residuales.
+   - **Gutter Dedicado, Guía Vertical y Sangría Colgante Exacta (`wrappingIndent: "same"`):** Cada `.code-line` mide su sangría inicial (`measureLeadingIndentCols` con aislamiento defensivo `.code-indent-box` para mezclas tab+espacio) y alinea sus filas envueltas exactamente debajo del primer carácter de la línea original (`--indent-safe: min(calc(var(--indent-cols, 0) * 1ch), 52%)`). Las continuaciones muestran en el gutter izquierdo de `28px` una guía punteada sutil y micro-codo en gris pizarra tenue (`#94a3b8` al 20%–34% de opacidad), además de una guía vertical de `1px` en la sangría para líneas indentadas y un realce suave de bloque lógico al pasar el cursor (`:hover`).
+   - **Inmunidad en Selección y Copiado Manual (`Ctrl+C`):** Tanto los indicadores del gutter como las guías verticales residen en capas CSS (`background-image`) fuera del DOM de texto. Adicionalmente, un manejador `copy` en `.code-block pre` (`extractSelectedCodeLines`) reconstruye el rango seleccionado `.code-line` por `.code-line`, garantizando que la selección manual con ratón o el botón "Copiar" jamás rompan una línea envuelta en dos ni pierdan tabulaciones o líneas en blanco.
    - **Tokenizador Léxico Multi-Lenguaje Zero-Bloatware (`syntax_highlighter.py`):** Resaltado estático en una sola pasada sobre texto crudo previo al escape HTML (`_emit_line_safe` cierra y reabre `<span>` en cada salto `\n` para compatibilidad absoluta con `initCodeBlocks()`), con texto base neutro (`var(--code-block-text)`) en `.code-block .code-line .code-text` y paleta semántica de alto contraste (`.tok-kw`, `.tok-step`, `.tok-str`, `.tok-comment`, `.tok-num`, `.tok-const`, `.tok-type`, `.tok-fn`, `.tok-tag`, `.tok-attr`, `.tok-var`, `.tok-op`, `.tok-diff-add`, `.tok-diff-del`). Soporta **Gherkin** (EN/ES, `@tags`, secciones, pasos, `<placeholders>`, DocStrings, tablas), **Groovy** (`gradle`/`jenkinsfile`/`katalon`, GStrings `${...}`, anotaciones, comentarios multilínea), **Python** (`f-strings`), **JavaScript/TypeScript**, **Java**, **Kotlin**, **C#**, **Go**, **Rust**, **C/C++**, **PHP**, **Ruby**, **PowerShell** (cmdlets/variables/flags sin falsos positivos en rutas), **Bash/Shell**, **Batch**, **SQL**, **JSON/JSONC**, **YAML**, **TOML**, **INI/Properties**, **HTML/XML**, **CSS/SCSS**, **Dockerfile**, **HTTP**, **GraphQL**, **Markdown** y **Diff**, junto con sus alias comunes.
 5. **Tablas Responsivas (`markdown_parser.py`):**
    - Detecta filas delimitadas por barras verticales `|` y separadores de alineación (`:---`, `:---:`, `---:`).
@@ -463,7 +463,7 @@ El script [install_shortcuts.ps1](file:///c:/General/MarkdownToHTML_App/install_
 
 La aplicación cuenta con dos niveles de validación automatizada:
 
-### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 186 Tests)
+### 8.1. Suite Integral Exhaustiva (`run_tests.py` - 187 Tests)
 
 Para ejecutar la verificación completa de toda la base de código con aislamiento total de disco:
 
@@ -473,7 +473,7 @@ python "c:\General\MarkdownToHTML_App\run_tests.py"
 
 La suite modular utiliza exclusivamente la biblioteca estándar `unittest` (Zero-Bloatware) y se divide en 7 módulos especializados en `tests/`:
 
-1. **`tests/test_md_engine.py` (103 tests):**
+1. **`tests/test_md_engine.py` (104 tests):**
    - Validación exhaustiva de tokens y colores del tema Volcanic Amber & Deep Obsidian.
    - Generación y sanitización de slugs (`slugify`) con caracteres Unicode, acentos y emojis.
    - Detección inteligente y jerárquica de títulos (`detect_smart_title`).

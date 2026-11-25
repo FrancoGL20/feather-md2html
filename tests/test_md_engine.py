@@ -1391,14 +1391,25 @@ class TestCodeBlockWrapFeature(unittest.TestCase):
         self.assertIn('<span class="tok-str">\'Hola Mundo\'</span>', m.group(1))
 
     def test_code_block_wrap_css_rules_and_tokens(self):
-        """Verifica que document.css contenga las reglas de modo wrap, scroll, tokens de sintaxis y contraste neutro."""
+        """Verifica que document.css contenga las reglas de Opción 3: gutter, sangría colgante, guía vertical, tokens y contraste neutro."""
         styles = md_engine.COMMON_STYLES
+        self.assertIn("--gutter-w:", styles)
+        self.assertIn("--line-bg-hover:", styles)
+        self.assertIn("--guide-color:", styles)
+        self.assertIn("--guide-color-hover:", styles)
         self.assertIn("--wrap-icon:", styles)
+        self.assertIn("--wrap-icon-hover:", styles)
         self.assertIn("16px 22px", styles)
+        self.assertIn("tab-size: 4;", styles)
+        self.assertIn("overflow-wrap: anywhere;", styles)
+        self.assertNotIn("word-break: break-all;", styles)
         self.assertIn(".code-actions", styles)
         self.assertIn(".copy-btn.active", styles)
         self.assertIn(".code-block pre code", styles)
         self.assertIn(".code-block .code-line .code-text", styles)
+        self.assertIn(".code-block .code-indent-box", styles)
+        self.assertIn("--indent-safe:", styles)
+        self.assertIn('.code-block:not(.no-wrap) .code-line[data-indented="1"]', styles)
         self.assertIn("color: var(--code-block-text);", styles)
         self.assertIn("box-decoration-break: clone;", styles)
         for tok in (".tok-kw", ".tok-step", ".tok-str", ".tok-comment", ".tok-num", ".tok-const", ".tok-type", ".tok-fn", ".tok-tag", ".tok-attr", ".tok-var", ".tok-op"):
@@ -1412,14 +1423,20 @@ class TestCodeBlockWrapFeature(unittest.TestCase):
         self.assertIn("white-space: pre;", styles)
 
     def test_document_template_contains_code_wrap_scripts(self):
-        """Verifica que document.html contenga los controladores JavaScript sin saltos extra ni contaminación al copiar."""
+        """Verifica que document.html contenga medición de sangría, copia manual íntegra y controladores JS sin saltos extra."""
         template = md_engine.get_html_doc_template()
+        self.assertIn("function measureLeadingIndentCols(text, tabSize)", template)
+        self.assertIn("function isolateMixedIndentBox(container, totalCols)", template)
+        self.assertIn("function extractSelectedCodeLines(pre, range)", template)
         self.assertIn("function toggleCodeWrap(btn)", template)
         self.assertIn("function initCodeBlocks()", template)
         init_section = template.split("function initCodeBlocks()")[1].split("function toggleCodeWrap(btn)")[0]
         self.assertIn('<span class="code-line"><span class="code-text">', init_section)
         self.assertIn(").join('')", init_section)
         self.assertNotIn(").join('\\n')", init_section)
+        self.assertIn("--indent-cols", init_section)
+        self.assertIn("data-indented", init_section)
+        self.assertIn("addEventListener('copy'", init_section)
         self.assertIn("codeBlock.querySelectorAll('.code-line')", template)
         self.assertIn("l.textContent", template)
 
@@ -1439,7 +1456,35 @@ class TestCodeBlockWrapFeature(unittest.TestCase):
             self.assertIn("wrap-btn active", html_content)
             self.assertIn("toggleCodeWrap", html_content)
             self.assertIn("initCodeBlocks", html_content)
+            self.assertIn("measureLeadingIndentCols", html_content)
+            self.assertIn("extractSelectedCodeLines", html_content)
             self.assertIn("--wrap-icon", html_content)
+            self.assertIn("--guide-color", html_content)
+
+    def test_converted_document_preserves_tabs_and_indented_if_blocks_for_hanging_wrap(self):
+        """Verifica que un bloque Groovy indentado con tabs compile sin errores y conserve su sangría exacta para wrap y copia."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            md = (
+                "# Prueba Sangria Colgante\n\n"
+                "```groovy\n"
+                'if (normalized == "with observations") {\n'
+                '\t\tKeywordUtil.markFailedAndStop("Unsupported observation group condition: " + groupCondition)\n'
+                "\n"
+                "\t\treturn\n"
+                "}\n"
+                "```\n"
+            )
+            res = md_engine.convert_and_update_library(md, tmp_dir, "Test Hanging Wrap")
+            self.assertTrue(res["success"])
+            html_content = Path(res["file_path"]).read_text(encoding="utf-8")
+
+            m = re.search(r"<pre><code>([\s\S]*?)</code></pre>", html_content)
+            self.assertIsNotNone(m)
+            plain_code = re.sub(r"<[^>]+>", "", m.group(1))
+            self.assertIn('\t\tKeywordUtil.markFailedAndStop', plain_code)
+            self.assertIn('\n\n\t\treturn\n', plain_code)
+            self.assertIn("--indent-safe:", html_content)
+            self.assertIn("overflow-wrap: anywhere;", html_content)
 
 
 if __name__ == "__main__":
