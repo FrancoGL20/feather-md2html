@@ -75,6 +75,84 @@
     }}
     initTheme();
 
+    function measureLeadingIndentCols(text, tabSize) {{
+      if (!text || !text.trim()) return {{ cols: 0, mixedAfterTab: false }};
+      let cols = 0;
+      let seenTab = false;
+      let mixedAfterTab = false;
+      for (let i = 0; i < text.length; i++) {{
+        const ch = text[i];
+        if (ch === '\t') {{
+          seenTab = true;
+          cols += tabSize - (cols % tabSize);
+        }} else if (ch === ' ') {{
+          if (seenTab) mixedAfterTab = true;
+          cols += 1;
+        }} else {{
+          break;
+        }}
+      }}
+      return {{ cols, mixedAfterTab }};
+    }}
+
+    function isolateMixedIndentBox(container, totalCols) {{
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+      const firstNode = walker.nextNode();
+      if (!firstNode) return;
+      const val = firstNode.nodeValue || '';
+      const m = val.match(/^([ \t]+)/);
+      if (!m) return;
+      const ws = m[1];
+      const rest = val.slice(ws.length);
+      const box = document.createElement('span');
+      box.className = 'code-indent-box';
+      box.style.width = totalCols + 'ch';
+      box.textContent = ws;
+      const parent = firstNode.parentNode;
+      parent.insertBefore(box, firstNode);
+      if (rest) {{
+        firstNode.nodeValue = rest;
+      }} else {{
+        parent.removeChild(firstNode);
+      }}
+    }}
+
+    function extractSelectedCodeLines(pre, range) {{
+      const lineEls = Array.from(pre.querySelectorAll('.code-line'));
+      if (lineEls.length === 0) return null;
+
+      const picked = [];
+      let endsWithTrailingNewline = false;
+
+      for (let i = 0; i < lineEls.length; i++) {{
+        const lineEl = lineEls[i];
+        if (!range.intersectsNode(lineEl)) continue;
+
+        const lineRange = document.createRange();
+        lineRange.selectNodeContents(lineEl);
+
+        const cmpStart = range.compareBoundaryPoints(Range.START_TO_START, lineRange);
+        const cmpEnd = range.compareBoundaryPoints(Range.END_TO_END, lineRange);
+
+        if (cmpStart > 0) {{
+          lineRange.setStart(range.startContainer, range.startOffset);
+        }}
+        if (cmpEnd < 0) {{
+          lineRange.setEnd(range.endContainer, range.endOffset);
+        }}
+
+        if (cmpEnd < 0 && lineRange.collapsed && picked.length > 0) {{
+          endsWithTrailingNewline = true;
+          break;
+        }}
+
+        picked.push(lineRange.toString());
+      }}
+
+      if (picked.length === 0) return null;
+      return picked.join('\n') + (endsWithTrailingNewline ? '\n' : '');
+    }}
+
     function initCodeBlocks() {{
       document.querySelectorAll('.code-block pre code').forEach(code => {{
         if (!code.querySelector('.code-line')) {{
@@ -85,6 +163,38 @@
               : `<span class="code-line"><span class="code-text">${{line}}</span></span>`
           ).join('');
         }}
+
+        code.querySelectorAll('.code-line').forEach(lineEl => {{
+          const info = measureLeadingIndentCols(lineEl.textContent || '', 4);
+          if (info.cols > 0) {{
+            lineEl.style.setProperty('--indent-cols', String(info.cols));
+            lineEl.setAttribute('data-indented', '1');
+            if (info.mixedAfterTab) {{
+              const ct = lineEl.querySelector('.code-text');
+              if (ct) isolateMixedIndentBox(ct, info.cols);
+            }}
+          }} else {{
+            lineEl.style.setProperty('--indent-cols', '0');
+            lineEl.setAttribute('data-indented', '0');
+          }}
+        }});
+      }});
+
+      document.querySelectorAll('.code-block pre').forEach(pre => {{
+        if (pre.dataset.copyBound) return;
+        pre.dataset.copyBound = '1';
+        pre.addEventListener('copy', (e) => {{
+          const sel = window.getSelection();
+          if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+          const range = sel.getRangeAt(0);
+          if (!pre.contains(range.commonAncestorContainer)) return;
+
+          const finalText = extractSelectedCodeLines(pre, range);
+          if (finalText !== null && e.clipboardData) {{
+            e.clipboardData.setData('text/plain', finalText);
+            e.preventDefault();
+          }}
+        }});
       }});
     }}
     initCodeBlocks();
