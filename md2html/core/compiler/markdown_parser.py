@@ -17,6 +17,7 @@ from md2html.core.compiler.ast_nodes import (
     strip_fence_indent,
 )
 from md2html.core.compiler.inline_parser import (
+    clean_markdown_inline,
     escape,
     highlight_code_block,
     inline_formatting,
@@ -122,11 +123,69 @@ def _build_mermaid_card_html(diag_id: str, esc_code: str) -> str:
     )
 
 
+def _split_table_row(row_line: str) -> List[str]:
+    """Splits a Markdown table row into cells without breaking on escaped pipes or inline code spans."""
+    s = row_line.strip()
+    if s.startswith("|"):
+        s = s[1:]
+    cells: List[str] = []
+    buf: List[str] = []
+    i = 0
+    n = len(s)
+    in_code_ticks = 0
+    ended_with_pipe = False
+
+    while i < n:
+        ch = s[i]
+        if ch == "`":
+            tick_end = i
+            while tick_end < n and s[tick_end] == "`":
+                tick_end += 1
+            tick_len = tick_end - i
+            if in_code_ticks == 0:
+                if re.search(rf"(?<!`){'`' * tick_len}(?!`)", s[tick_end:]):
+                    in_code_ticks = tick_len
+            elif tick_len == in_code_ticks:
+                in_code_ticks = 0
+            buf.append(s[i:tick_end])
+            i = tick_end
+            ended_with_pipe = False
+            continue
+
+        if ch == "\\" and i + 1 < n:
+            nxt = s[i + 1]
+            if nxt == "|":
+                buf.append("|")
+                i += 2
+                ended_with_pipe = False
+                continue
+            if nxt == "\\":
+                buf.append("\\\\")
+                i += 2
+                ended_with_pipe = False
+                continue
+
+        if ch == "|" and in_code_ticks == 0:
+            cells.append("".join(buf).strip())
+            buf = []
+            i += 1
+            ended_with_pipe = True
+            continue
+
+        buf.append(ch)
+        i += 1
+        ended_with_pipe = False
+
+    if not ended_with_pipe:
+        cells.append("".join(buf).strip())
+    return cells
+
+
 def _render_table_block(table_lines: List[str], has_separator: bool) -> str:
     """Renders a contiguous sequence of Markdown table lines into a .table-container HTML block."""
     if has_separator:
-        headers = [c.strip() for c in table_lines[0].strip().strip("|").split("|")]
-        align_cells = [c.strip() for c in table_lines[1].strip().strip("|").split("|")]
+        headers = _split_table_row(table_lines[0])
+        align_cells = _split_table_row(table_lines[1])
         alignments = []
         for a in align_cells:
             if a.startswith(":") and a.endswith(":"):
@@ -139,7 +198,7 @@ def _render_table_block(table_lines: List[str], has_separator: bool) -> str:
                 alignments.append("")
         data_rows = table_lines[2:]
     else:
-        headers = [c.strip() for c in table_lines[0].strip().strip("|").split("|")]
+        headers = _split_table_row(table_lines[0])
         alignments = ["" for _ in headers]
         data_rows = table_lines[1:]
 
@@ -151,7 +210,7 @@ def _render_table_block(table_lines: List[str], has_separator: bool) -> str:
     )
     tr_html = []
     for r_line in data_rows:
-        cells = [c.strip() for c in r_line.strip().strip("|").split("|")]
+        cells = _split_table_row(r_line)
         tds = "".join(
             [
                 f"<td {alignments[col] if col < len(alignments) else ''}>{inline_formatting(c)}</td>"
@@ -301,14 +360,16 @@ def parse_markdown(
         if i + 1 < n and stripped and not stripped.startswith(("#", "```", "~~~", ">", "|", "- ", "* ", "+ ", "---", "===")):
             next_line = body_lines[i + 1].strip()
             if re.match(r"^[=]{3,}\s*$", next_line):
-                slug = slugify(stripped)
+                clean_heading = clean_markdown_inline(stripped) or stripped
+                slug = slugify(clean_heading)
                 heading_content = inline_formatting(stripped)
                 html_blocks.append(f'<h1 id="{slug}">{heading_content}</h1>')
                 i += 2
                 continue
             elif re.match(r"^[-]{3,}\s*$", next_line) and not stripped.startswith("-"):
-                slug = slugify(stripped)
-                toc_items.append((2, stripped, slug))
+                clean_heading = clean_markdown_inline(stripped) or stripped
+                slug = slugify(clean_heading)
+                toc_items.append((2, clean_heading, slug))
                 heading_content = inline_formatting(stripped)
                 html_blocks.append(f'<h2 id="{slug}">{heading_content}</h2>')
                 i += 2
@@ -346,10 +407,11 @@ def parse_markdown(
         if heading_match:
             level = len(heading_match.group(1))
             heading_raw = heading_match.group(2).strip()
-            slug = slugify(heading_raw)
+            clean_heading = clean_markdown_inline(heading_raw) or heading_raw
+            slug = slugify(clean_heading)
 
             if level in (2, 3):
-                toc_items.append((level, heading_raw, slug))
+                toc_items.append((level, clean_heading, slug))
 
             heading_content = inline_formatting(heading_raw)
             html_blocks.append(f'<h{level} id="{slug}">{heading_content}</h{level}>')
@@ -491,8 +553,8 @@ def parse_markdown(
             para_lines.append(body_lines[i].strip())
             i += 1
         if para_lines:
-            para_text = " ".join(para_lines)
-            html_blocks.append(f"<p>{inline_formatting(para_text)}</p>")
+            para_html = "<br>".join([inline_formatting(l) for l in para_lines])
+            html_blocks.append(f"<p>{para_html}</p>")
 
         if i == loop_start_i:
             html_blocks.append(f"<p>{inline_formatting(stripped)}</p>")
@@ -510,6 +572,7 @@ def parse_markdown(
             f'  <nav class="toc-nav"><ul>{"".join(toc_li)}</ul></nav>\n'
             f"</details>"
         )
+        toc_html = math_ctx.restore_html(toc_html)
 
     raw_body = "\n".join(html_blocks)
     final_body = math_ctx.restore_html(raw_body)
